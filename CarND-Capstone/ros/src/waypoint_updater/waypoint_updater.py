@@ -59,7 +59,7 @@ class WaypointUpdater(object):
         # rospy.spin()
 
     def loop(self):
-        rate = rospy.Rate(50) # 50Hz
+        rate = rospy.Rate(10) # 50Hz
         while not rospy.is_shutdown():
             self.publish_waypoints()
             rate.sleep()
@@ -111,7 +111,7 @@ class WaypointUpdater(object):
             for idx_waypt in range(LOOKAHEAD_WPS):
                 idx_waypt_to_append = (closest_wp_idx + idx_waypt)% len(self.master_lane_data.waypoints)
                 waypt_to_append = self.master_lane_data.waypoints[idx_waypt_to_append]
-                # waypt_to_append.twist.twist.linear.x = 20;
+                waypt_to_append.twist.twist.linear.x = 5;
                 # Change the velocity of the waypt to 5 m/s. This is const value for first iteration.
                 array_final_waypoints.waypoints.append(waypt_to_append)
 

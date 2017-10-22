@@ -6,7 +6,7 @@ from dbw_mkz_msgs.msg import ThrottleCmd, SteeringCmd, BrakeCmd, SteeringReport
 from geometry_msgs.msg import TwistStamped
 import math
 
-from twist_controller import Controller
+from twist_controller import TwistController
 
 '''
 You can build this node only after you have built (or partially built) the `waypoint_updater` node.
@@ -55,51 +55,71 @@ class DBWNode(object):
                                          BrakeCmd, queue_size=1)
 
         # TODO: Create `TwistController` object
-        # self.controller = TwistController(<Arguments you wish to provide>)
+        # specify the controller gain parameters
+        #1) Velocity controller
+        self.velocity_control_params = [0.1, 0.0, 0.0]
+        #2 Yaw controller
+        self.steer_control_params = [0.0, 0.0, 0.0]
+
+        # Initalize the TwistController object
+        self.controller = TwistController(self.velocity_control_params, self.steer_control_params,
+                                            vehicle_mass,decel_limit,wheel_radius)
 
         # TODO: Subscribe to all the topics you need to
         rospy.Subscriber('/current_velocity',TwistStamped,self.cv_callback)
         rospy.Subscriber('/twist_cmd',TwistStamped,self.twist_callback)
         rospy.Subscriber('/vehicle/dbw_enabled',Bool,self.dbw_callback)
 
-        self.is_dbw_enabled = True
+        self.dbw_enabled = False
 
-        self.desired_linear_vel = [0.0,0.0,0.0]
-        self.desired_ang_vel    = [0.0,0.0,0.0]
+        self.desired_linear_vel = 0.0 # only x direction required
+        self.desired_ang_vel    = 0.0 # only z direction required
 
-        self.actual_linear_vel  = [0.0,0.0,0.0]
-        self.actual_ang_vel     = [0.0,0.0,0.0]
+        self.actual_linear_vel  = 0.0
+        self.actual_ang_vel     = 0.0
 
+        self.loop_rate = 50.0;
         self.loop()
 
     def cv_callback(self,msg):
 
-        self.actual_linear_vel = [msg.twist.linear.x,msg.twist.linear.y,msg.twist.linear.z]
-        self.actual_ang_vel    = [msg.twist.angular.x,msg.twist.angular.y,msg.twist.angular.z]
+        self.actual_linear_vel = msg.twist.linear.x
+        self.actual_ang_vel    = msg.twist.angular.z
         # rospy.loginfo('abhishek - cv_callback: act_vel: %s' % str(self.actual_linear_vel))
 
     def twist_callback(self,msg):
-        self.desired_linear_vel = [msg.twist.linear.x,msg.twist.linear.y,msg.twist.linear.z]
-        self.desired_ang_vel    = [msg.twist.angular.x,msg.twist.angular.y,msg.twist.angular.z]
+        self.desired_linear_vel = msg.twist.linear.x
+        self.desired_ang_vel    = msg.twist.angular.z
         # rospy.loginfo('abhishek - twist_callback: desired_linear_vel: %s' % str(self.desired_linear_vel))
 
     def dbw_callback(self,msg):
-        self.is_dbw_enabled = msg.data # data is a boolean value
-        rospy.loginfo('abhishek - dbw_received: %s'% self.is_dbw_enabled)
+        self.dbw_enabled = msg.data # data is a boolean value
+        rospy.loginfo('abhishek - dbw_received: %s'% self.dbw_enabled)
 
     def loop(self):
-        rate = rospy.Rate(50) # 50Hz
+        rate = rospy.Rate(self.loop_rate) # 50Hz
         while not rospy.is_shutdown():
             # TODO: Get predicted throttle, brake, and steering using `twist_controller`
             # You should only publish the control commands if dbw is enabled
-            # throttle, brake, steering = self.controller.control(<proposed linear velocity>,
-            #                                                     <proposed angular velocity>,
-            #                                                     <current linear velocity>,
-            #                                                     <dbw status>,
-            #                                                     <any other argument you need>)
-            if self.is_dbw_enabled:
-            #   self.publish(throttle, brake, steer)
-              self.publish(1.0, 0.0, 0.0)
+
+
+            # calculate the velocity error . in meter / sec
+            velocity_error_mps =  self.desired_linear_vel - self.actual_linear_vel
+
+            # calculate the yaw rate error . in rad / sec
+            yawrate_error_radps = self.desired_ang_vel - self.actual_ang_vel
+
+            # Use dbw value to reset the controller states if needed.
+            throttle, brake, steering = self.controller.control(velocity_error_mps,
+                                                                yawrate_error_radps,
+                                                                self.dbw_enabled,
+                                                                self.loop_rate)
+            # rospy.loginfo('dbw_enable: %s, vel_error: %s , throttle: %s \n '% (self.dbw_enabled, velocity_error_mps, throttle))
+            rospy.loginfo('vel_error: %s , throttle: %s, brake: %s  \n '% (velocity_error_mps, throttle, brake))
+
+            if self.dbw_enabled:
+                self.publish(throttle, brake, steering)
+            #   self.publish(1.0, 0.0, 0.0)
 
             rate.sleep()
 
