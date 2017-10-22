@@ -9,7 +9,12 @@ from flask import Flask, render_template
 from bridge import Bridge
 from conf import conf
 
-sio = socketio.Server()
+# abhi - adding eventlet.monkey_patch, and async mode based on discussion forum 
+# discussions.udacity.com/t/car-freezes-in-simulator-solved/363942/12
+eventlet.monkey_patch()
+sio = socketio.Server(async_mode='eventlet')
+
+#sio = socketio.Server()
 app = Flask(__name__)
 msgs = []
 
@@ -64,3 +69,4 @@ if __name__ == '__main__':
 
     # deploy as an eventlet WSGI server
     eventlet.wsgi.server(eventlet.listen(('', 4567)), app)
+

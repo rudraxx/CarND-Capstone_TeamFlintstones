@@ -34,6 +34,7 @@ that we have created in the `__init__` function.
 class DBWNode(object):
     def __init__(self):
         rospy.init_node('dbw_node')
+        rospy.loginfo('abhishek - Starting dbw_node')
 
         vehicle_mass = rospy.get_param('~vehicle_mass', 1736.35)
         fuel_capacity = rospy.get_param('~fuel_capacity', 13.5)
@@ -57,8 +58,34 @@ class DBWNode(object):
         # self.controller = TwistController(<Arguments you wish to provide>)
 
         # TODO: Subscribe to all the topics you need to
+        rospy.Subscriber('/current_velocity',TwistStamped,self.cv_callback)
+        rospy.Subscriber('/twist_cmd',TwistStamped,self.twist_callback)
+        rospy.Subscriber('/vehicle/dbw_enabled',Bool,self.dbw_callback)
+
+        self.is_dbw_enabled = True
+
+        self.desired_linear_vel = [0.0,0.0,0.0]
+        self.desired_ang_vel    = [0.0,0.0,0.0]
+
+        self.actual_linear_vel  = [0.0,0.0,0.0]
+        self.actual_ang_vel     = [0.0,0.0,0.0]
 
         self.loop()
+
+    def cv_callback(self,msg):
+
+        self.actual_linear_vel = [msg.twist.linear.x,msg.twist.linear.y,msg.twist.linear.z]
+        self.actual_ang_vel    = [msg.twist.angular.x,msg.twist.angular.y,msg.twist.angular.z]
+        # rospy.loginfo('abhishek - cv_callback: act_vel: %s' % str(self.actual_linear_vel))
+
+    def twist_callback(self,msg):
+        self.desired_linear_vel = [msg.twist.linear.x,msg.twist.linear.y,msg.twist.linear.z]
+        self.desired_ang_vel    = [msg.twist.angular.x,msg.twist.angular.y,msg.twist.angular.z]
+        # rospy.loginfo('abhishek - twist_callback: desired_linear_vel: %s' % str(self.desired_linear_vel))
+
+    def dbw_callback(self,msg):
+        self.is_dbw_enabled = msg.data # data is a boolean value
+        rospy.loginfo('abhishek - dbw_received: %s'% self.is_dbw_enabled)
 
     def loop(self):
         rate = rospy.Rate(50) # 50Hz
@@ -70,8 +97,10 @@ class DBWNode(object):
             #                                                     <current linear velocity>,
             #                                                     <dbw status>,
             #                                                     <any other argument you need>)
-            # if <dbw is enabled>:
+            if self.is_dbw_enabled:
             #   self.publish(throttle, brake, steer)
+              self.publish(1.0, 0.0, 0.0)
+
             rate.sleep()
 
     def publish(self, throttle, brake, steer):
@@ -94,4 +123,8 @@ class DBWNode(object):
 
 
 if __name__ == '__main__':
-    DBWNode()
+    try:
+        DBWNode()
+    except rospy.ROSInterruptException:
+        rospy.logerr('Could not start DBW node.')
+

@@ -53,10 +53,16 @@ class WaypointUpdater(object):
         self.heading = 0.0 # world frame, radians
 
         # Publisher related
-        self.publish_rate = 10; # 10 Hz
+        # self.publish_rate = 10; # 10 Hz
 
+        self.loop()
+        # rospy.spin()
 
-        rospy.spin()
+    def loop(self):
+        rate = rospy.Rate(50) # 50Hz
+        while not rospy.is_shutdown():
+            self.publish_waypoints()
+            rate.sleep()
 
     def pose_cb(self, msg):
         # TODO: Implement
@@ -74,22 +80,25 @@ class WaypointUpdater(object):
         # If needed, will have to include a method to convert quaternion to euler angles.
         # self.heading = msg.pose.orientation.z
 
-        # Preventing case when pose data comes before the waypoint data for the first iteration. In that case, we wont have any waypoint info.
-        if(self.received_waypoints):
-            self.publish_waypoints()
-            # self.received_waypoints = False # temp for debugging. delete this line.
-        # pass
+        # # Preventing case when pose data comes before the waypoint data for the first iteration. In that case, we wont have any waypoint info.
+        # if(self.received_waypoints):
+        #     self.publish_waypoints()
+        #     # self.received_waypoints = False # temp for debugging. delete this line.
+        # # pass
 
     def publish_waypoints(self):
 
+        # Preventing case when pose data comes before the waypoint data for the first iteration. In that case, we wont have any waypoint info.
+        if(self.received_waypoints):
+
         # 1) Find the closest waypoint to the current position:
             # Get distance of this waypt to the current pose
-            rospy.loginfo("Calculating closest waypoint: current_x: %s, current_y: %s"% (self.current_pose_msg.pose.position.x,self.current_pose_msg.pose.position.y))
+            # rospy.loginfo("Calculating closest waypoint: current_x: %s, current_y: %s"% (self.current_pose_msg.pose.position.x,self.current_pose_msg.pose.position.y))
 
             closest_wp_idx, closest_wp_dist = self.get_closest_waypoint(self.current_pose_msg.pose,self.master_lane_data.waypoints)
 
             # Log some information about the closest waypt.
-            rospy.loginfo("Closest waypoint - idx: %s, dist: %s"% (closest_wp_idx,closest_wp_dist))
+            # rospy.loginfo("Closest waypoint - idx: %s, dist: %s"% (closest_wp_idx,closest_wp_dist))
             # rospy.loginfo(self.master_lane_data.waypoints[closest_wp_idx])
 
        # 2) Now that we have the closest waypoint, create a new list for the final waypoints
@@ -107,7 +116,6 @@ class WaypointUpdater(object):
                 array_final_waypoints.waypoints.append(waypt_to_append)
 
                 # rospy.loginfo("x values of all future waypoints.: %s"% (waypt_to_append.pose.pose.position.x ))
-
 
             # rospy.loginfo("array_final_waypoints after for loop : %s"% (len(array_final_waypoints.waypoints)))
 
