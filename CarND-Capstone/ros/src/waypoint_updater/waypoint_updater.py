@@ -3,6 +3,7 @@
 import rospy
 from geometry_msgs.msg import PoseStamped
 from styx_msgs.msg import Lane, Waypoint
+from std_msgs.msg import Int32
 
 import math
 
@@ -34,7 +35,9 @@ class WaypointUpdater(object):
 
         # TODO: Add a subscriber for /traffic_waypoint and /obstacle_waypoint below
 
-        # Read the below statement as
+        rospy.Subscriber('/traffic_waypoint', Int32, self.traffic_cb)
+
+        # Read the below statement astr
         # waypoint_updater pubishing on topic: 'final_waypoints' of type: 'Lane', with queue_size of : 1
         self.final_waypoints_pub = rospy.Publisher('final_waypoints', Lane, queue_size=1)
 
