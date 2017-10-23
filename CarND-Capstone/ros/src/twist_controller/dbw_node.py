@@ -57,9 +57,9 @@ class DBWNode(object):
         # TODO: Create `TwistController` object
         # specify the controller gain parameters
         #1) Velocity controller
-        self.velocity_control_params = [0.1, 0.0, 0.0]
+        self.velocity_control_params = [0.3, 0.0, 0.0]
         #2 Yaw controller
-        self.steer_control_params = [0.0, 0.0, 0.0]
+        self.steer_control_params = [0.7, 0.0, 0.01]
 
         # Initalize the TwistController object
         self.controller = TwistController(self.velocity_control_params, self.steer_control_params,
@@ -115,7 +115,7 @@ class DBWNode(object):
                                                                 self.dbw_enabled,
                                                                 self.loop_rate)
             # rospy.loginfo('dbw_enable: %s, vel_error: %s , throttle: %s \n '% (self.dbw_enabled, velocity_error_mps, throttle))
-            rospy.loginfo('vel_error: %s , throttle: %s, brake: %s  \n '% (velocity_error_mps, throttle, brake))
+            rospy.loginfo('vel_error: %s , throttle: %s, brake: %s, steering: %s  \n '% (velocity_error_mps, throttle, brake, steering))
 
             if self.dbw_enabled:
                 self.publish(throttle, brake, steering)
