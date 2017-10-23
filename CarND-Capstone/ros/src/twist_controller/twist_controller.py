@@ -71,11 +71,11 @@ class TwistController(object):
 
             # Steering controller
             # Call the step function of the velocity controller to get new control value
-            # steering = self.steering_controller.step(yawrate_error_radps,1.0/loop_rate)
+            steering = self.steering_controller.step(yawrate_error_radps,1.0/loop_rate)
 
         else:
             self.velocity_controller.reset()
-            # self.steering_controller.reset()
+            self.steering_controller.reset()
 
         # Return throttle, brake, steer
         # return 1., 0., 0.
