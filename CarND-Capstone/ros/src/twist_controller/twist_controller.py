@@ -4,6 +4,7 @@ from yaw_controller import YawController
 GAS_DENSITY = 2.858
 ONE_MPH = 0.44704
 
+# some initial values randoms
 K_p = 0.2
 K_i = 0.003
 K_d = 3.0
@@ -29,6 +30,7 @@ class Controller(object):
         self.max_steer_angle = max_steer_angle
         self.yaw_controller = YawController(wheel_base, steer_ratio, min_speed, max_lat_accel, max_steer_angle)
         self.wheel_radius = wheel_radius
+        # CTE and delta_t needed for PID
         self.pid = PID(K_p, K_i, K_d, mn=decel_limit, mx=accel_limit)
         pass
 
