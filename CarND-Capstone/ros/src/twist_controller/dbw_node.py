@@ -74,6 +74,10 @@ class DBWNode(object):
 
         self.dbw_enabled = False
 
+        # Init Twist values
+        self.twist_cmd_twist = TwistStamped()
+        self.current_velocity_twist = TwistStamped()
+
         self.desired_linear_vel = 0.0 # only x direction required
         self.desired_ang_vel    = 0.0 # only z direction required
 
