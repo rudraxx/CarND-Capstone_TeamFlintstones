@@ -71,9 +71,9 @@ class DBWNode(object):
                                             accel_limit, decel_limit,wheel_radius, yaw_controller)
 
         # TODO: Subscribe to all the topics you need to
-        rospy.Subscriber('/current_velocity',TwistStamped,self.cv_callback)
-        rospy.Subscriber('/twist_cmd',TwistStamped,self.twist_callback)
-        rospy.Subscriber('/vehicle/dbw_enabled',Bool,self.dbw_callback)
+        rospy.Subscriber('/current_velocity',TwistStamped,self.cv_callback, queue_size=1)
+        rospy.Subscriber('/twist_cmd',TwistStamped,self.twist_callback, queue_size=1)
+        rospy.Subscriber('/vehicle/dbw_enabled',Bool,self.dbw_callback, queue_size=1)
 
         self.dbw_enabled = False
 
@@ -122,6 +122,7 @@ class DBWNode(object):
 
             current_time = rospy.get_time()
             delta_time =  current_time - self.prev_vel_msg_time
+
             self.prev_vel_msg_time  = current_time
 
             # calculate the velocity error . in meter / sec
