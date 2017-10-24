@@ -5,6 +5,7 @@ from geometry_msgs.msg import PoseStamped
 from styx_msgs.msg import Lane, Waypoint
 
 import math
+import tf
 
 '''
 This node will publish waypoints from the car's current position to some `x` distance ahead.
@@ -59,7 +60,7 @@ class WaypointUpdater(object):
         # rospy.spin()
 
     def loop(self):
-        rate = rospy.Rate(10) # 50Hz
+        rate = rospy.Rate(30) # 50Hz
         while not rospy.is_shutdown():
             self.publish_waypoints()
             rate.sleep()
@@ -95,7 +96,7 @@ class WaypointUpdater(object):
             # Get distance of this waypt to the current pose
             # rospy.loginfo("Calculating closest waypoint: current_x: %s, current_y: %s"% (self.current_pose_msg.pose.position.x,self.current_pose_msg.pose.position.y))
 
-            closest_wp_idx, closest_wp_dist = self.get_closest_waypoint(self.current_pose_msg.pose,self.master_lane_data.waypoints)
+            next_wp_idx = self.get_next_waypoint(self.current_pose_msg.pose,self.master_lane_data.waypoints)
 
             # Log some information about the closest waypt.
             # rospy.loginfo("Closest waypoint - idx: %s, dist: %s"% (closest_wp_idx,closest_wp_dist))
@@ -109,9 +110,9 @@ class WaypointUpdater(object):
             # rospy.loginfo("LOOKAHEAD_WPS: %s"% LOOKAHEAD_WPS)
 
             for idx_waypt in range(LOOKAHEAD_WPS):
-                idx_waypt_to_append = (closest_wp_idx + idx_waypt)% len(self.master_lane_data.waypoints)
+                idx_waypt_to_append = (next_wp_idx + idx_waypt)% len(self.master_lane_data.waypoints)
                 waypt_to_append = self.master_lane_data.waypoints[idx_waypt_to_append]
-                waypt_to_append.twist.twist.linear.x = 5;
+                waypt_to_append.twist.twist.linear.x = 10;
                 # Change the velocity of the waypt to 5 m/s. This is const value for first iteration.
                 array_final_waypoints.waypoints.append(waypt_to_append)
 
@@ -121,6 +122,33 @@ class WaypointUpdater(object):
 
             # Publish the Lane info to the /final_waypoints topic
             self.final_waypoints_pub.publish(array_final_waypoints)
+
+    def get_next_waypoint(self,ego_pose,waypoints):
+
+        next_wp_idx = self.get_closest_waypoint(ego_pose,waypoints)
+
+        map_x = waypoints[next_wp_idx].pose.pose.position.x
+        map_y = waypoints[next_wp_idx].pose.pose.position.y
+
+        heading = math.atan2((map_y - ego_pose.position.y), (map_x - ego_pose.position.x))
+
+        quaternion = (ego_pose.orientation.x, ego_pose.orientation.y, ego_pose.orientation.z, ego_pose.orientation.w)
+        _, _, yaw = tf.transformations.euler_from_quaternion(quaternion)
+
+        # https://stackoverflow.com/questions/5782658/extracting-yaw-from-a-quaternion
+        # quaternion as [w,x,y,z]
+        # quaternion = (ego_pose.orientation.w,ego_pose.orientation.x, ego_pose.orientation.y, ego_pose.orientation.z)
+        # q[0] = cos(r/2);
+        # q[1] = sin(r/2)*x;
+        # q[2] = sin(r/2)*y;
+        # q[3] = sin(r/2)*z;
+
+        angle = abs(yaw - heading)
+        if angle > (math.pi / 4):
+            next_wp_idx += 1
+
+        return next_wp_idx
+
 
     def get_closest_waypoint(self,ego_pose,waypoints):
 
@@ -137,7 +165,7 @@ class WaypointUpdater(object):
                 closest_wp_dist = dist_to_wp
                 closest_wp_idx  = idx
 
-        return closest_wp_idx,closest_wp_dist
+        return closest_wp_idx
 
 
     def waypoints_cb(self, waypoints):
