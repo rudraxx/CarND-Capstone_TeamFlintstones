@@ -18,7 +18,7 @@ class TwistController(object):
         self.decel_limit = decel_limit
         self.wheel_radius = wheel_radius
         self.yaw_controller = yaw_controller
-        self.lpf_steer = LowPassFilter(0.2,0.1) # 10 Hz cutoff
+        self.lpf_steer = LowPassFilter(0.2, 0.1) # 10 Hz cutoff
         self.lpf_velocity = LowPassFilter(0.2, 0.1) # 50 Hz cuttoff freq. 10Hz sample time for velocity cmds
         # Create a pid controller of the velocity control
         # Changed mn and mx to values provided in dbw_node
