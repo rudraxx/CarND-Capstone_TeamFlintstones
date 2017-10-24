@@ -59,13 +59,13 @@ class DBWNode(object):
         # specify the controller gain parameters
         #1) Velocity controller
         self.velocity_control_params = [0.3, 0.0, 0.0]
+
         #2 Yaw controller
-        self.steer_control_params = [0.0, 0.0, 0.0]
         yaw_controller = YawController(wheel_base, steer_ratio, ONE_MPH, max_lat_accel, max_steer_angle)
         total_vehicle_mass = vehicle_mass + fuel_capacity * GAS_DENSITY
 
         # Initalize the TwistController object
-        self.controller = TwistController(self.velocity_control_params, self.steer_control_params,
+        self.controller = TwistController(self.velocity_control_params,
                                           total_vehicle_mass, accel_limit, decel_limit,wheel_radius, yaw_controller)
 
         # TODO: Subscribe to all the topics you need to
@@ -79,11 +79,11 @@ class DBWNode(object):
         self.twist_cmd_twist = TwistStamped().twist
         self.current_velocity_twist = TwistStamped().twist
 
-        self.desired_linear_vel = 0.0 # only x direction required
-        self.desired_ang_vel    = 0.0 # only z direction required
+        # self.desired_linear_vel = 0.0 # only x direction required
+        # self.desired_ang_vel    = 0.0 # only z direction required
 
-        self.actual_linear_vel  = 0.0
-        self.actual_ang_vel     = 0.0
+        # self.actual_linear_vel  = 0.0
+        # self.actual_ang_vel     = 0.0
 
         self.loop_rate = 50.0
         self.loop()
@@ -92,16 +92,16 @@ class DBWNode(object):
         # Maybe it is to keep it ad twist object as we need to pass it to twist_controller for yaw_controller
         self.current_velocity_twist = msg.twist
 
-        self.actual_linear_vel = msg.twist.linear.x
-        self.actual_ang_vel    = msg.twist.angular.z
+        # self.actual_linear_vel = msg.twist.linear.x
+        # self.actual_ang_vel    = msg.twist.angular.z
         # rospy.loginfo('abhishek - cv_callback: act_vel: %s' % str(self.actual_linear_vel))
 
     def twist_callback(self,msg):
         # Maybe it is to keep it ad twist object as we need to pass it to twist_controller for yaw_controller
         self.twist_cmd_twist = msg.twist
 
-        self.desired_linear_vel = msg.twist.linear.x
-        self.desired_ang_vel    = msg.twist.angular.z
+        # self.desired_linear_vel = msg.twist.linear.x
+        # self.desired_ang_vel    = msg.twist.angular.z
         # rospy.loginfo('abhishek - twist_callback: desired_linear_vel: %s' % str(self.desired_linear_vel))
 
     def dbw_callback(self,msg):
@@ -116,20 +116,15 @@ class DBWNode(object):
 
 
             # calculate the velocity error . in meter / sec
-            velocity_error_mps =  self.desired_linear_vel - self.actual_linear_vel
-
-            # calculate the yaw rate error . in rad / sec
-            yawrate_error_radps = self.desired_ang_vel - self.actual_ang_vel
+            # velocity_error_mps =  self.desired_linear_vel - self.actual_linear_vel
 
             # Use dbw value to reset the controller states if needed.
-            throttle, brake, steering = self.controller.control(velocity_error_mps,
-                                                                yawrate_error_radps,
-                                                                self.dbw_enabled,
+            throttle, brake, steering = self.controller.control(self.dbw_enabled,
                                                                 self.loop_rate,
                                                                 self.twist_cmd_twist,
                                                                 self.current_velocity_twist)
             # rospy.loginfo('dbw_enable: %s, vel_error: %s , throttle: %s \n '% (self.dbw_enabled, velocity_error_mps, throttle))
-            rospy.loginfo('vel_error: %s , throttle: %s, brake: %s, steering: %s  \n '% (velocity_error_mps, throttle, brake, steering))
+            rospy.loginfo('throttle: %s, brake: %s, steering: %s  \n '% (throttle, brake, steering))
 
             if self.dbw_enabled:
                 self.publish(throttle, brake, steering)
