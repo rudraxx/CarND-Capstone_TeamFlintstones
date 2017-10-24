@@ -18,8 +18,8 @@ class TwistController(object):
         self.decel_limit = decel_limit
         self.wheel_radius = wheel_radius
         self.yaw_controller = yaw_controller
-        self.lpf_steer = LowPassFilter(0.2,0.02) # 5Hz cutoff
-        self.lpf_velocity = LowPassFilter(0.01, 0.02) # 100Hz cuttoff freq. 50Hz sample time for velocity cmds
+        self.lpf_steer = LowPassFilter(0.2,0.1) # 10 Hz cutoff
+        self.lpf_velocity = LowPassFilter(0.2, 0.1) # 50 Hz cuttoff freq. 10Hz sample time for velocity cmds
         # Create a pid controller of the velocity control
         # Changed mn and mx to values provided in dbw_node
         # Pawel Cisek 23.10
@@ -41,13 +41,14 @@ class TwistController(object):
         if dbw_enabled:
 
             # Velocity controller
-            velocity_error_mps =  twist_cmd_twist.linear.x - current_velocity_twist.linear.x
+            velocity_error_mps = twist_cmd_twist.linear.x - current_velocity_twist.linear.x
 
             #Low pass filter the velocity error
-            velocity_error_mps = self.lpf_velocity.filt(velocity_error_mps)
+            # velocity_error_mps = self.lpf_velocity.filt(velocity_error_mps)
 
             # Call the step function of the velocity controller to get new control value
             throttle = self.velocity_controller.step(velocity_error_mps, delta_time)
+            throttle = self.lpf_velocity.filt(throttle)
             # rospy.loginfo('in twist_controller, throttle = %s'% throttle)
 
             # If the throttle value is negative, that means we need to brake
@@ -84,4 +85,3 @@ class TwistController(object):
         angular_velocity = twist_cmd_twist.angular.z
         current_velocity = current_velocity_twist.linear.x
         return self.yaw_controller.get_steering(linear_velocity, angular_velocity, current_velocity)
-

@@ -91,7 +91,7 @@ class DBWNode(object):
         self.prev_vel_msg_time = 0.0
 
         # Specify the loop rate for the node
-        self.loop_rate = 50.0
+        self.loop_rate = 10.0
         self.loop()
 
     def cv_callback(self,msg):
@@ -122,6 +122,7 @@ class DBWNode(object):
 
             current_time = rospy.get_time()
             delta_time =  current_time - self.prev_vel_msg_time
+
             self.prev_vel_msg_time  = current_time
 
             # calculate the velocity error . in meter / sec
