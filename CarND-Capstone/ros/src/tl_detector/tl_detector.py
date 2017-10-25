@@ -152,7 +152,6 @@ class TLDetector(object):
         # rospy.loginfo('closest waypt to light idx: %s, light_x: %s, light_y: %s, wp_x: %s , wp_y: %s'% (closest_wp_idx,light_x,light_y, self.waypoints.waypoints[closest_wp_idx].pose.pose.position.x,
         #                                             self.waypoints.waypoints[closest_wp_idx].pose.pose.position.y))
 
-
         return closest_wp_idx, closest_light_idx
 
 
@@ -192,6 +191,9 @@ class TLDetector(object):
         # rospy.loginfo('in process_traffic_lights')
 
         #TODO find the closest visible traffic light (if one exists)
+        light_wp = -1
+        state = -1
+
         if(self.pose and self.waypoints):
             waypt_closest_to_light, idx_lightpost = self.get_closest_waypoint(self.pose.pose)
             state_closest_traffic_light = self.lights[idx_lightpost].state
@@ -209,12 +211,12 @@ class TLDetector(object):
         # self.waypoints = None
         # return -1, TrafficLight.UNKNOWN
 
-        if(waypt_closest_to_light==-1):
-            state = TrafficLight.UNKNOWN
-            light_wp = -1
-        else:
-            state  = state_closest_traffic_light
-            light_wp = waypt_closest_to_light
+            if(waypt_closest_to_light==-1):
+                state = TrafficLight.UNKNOWN
+                light_wp = -1
+            else:
+                state  = state_closest_traffic_light
+                light_wp = waypt_closest_to_light
 
         return light_wp, state
 
