@@ -11,6 +11,7 @@ import tf
 import cv2
 import yaml
 
+import math
 STATE_COUNT_THRESHOLD = 3
 
 class TLDetector(object):
@@ -90,7 +91,8 @@ class TLDetector(object):
             self.upcoming_red_light_pub.publish(Int32(self.last_wp))
         self.state_count += 1
 
-    def get_closest_waypoint(self, pose):
+
+    def get_closest_waypoint(self, ego_pose):
         """Identifies the closest path waypoint to the given position
             https://en.wikipedia.org/wiki/Closest_pair_of_points_problem
         Args:
@@ -98,10 +100,61 @@ class TLDetector(object):
 
         Returns:
             int: index of the closest waypoint in self.waypoints
-
         """
         #TODO implement
-        return 0
+        # Find the closest lightpost to our current position
+        closest_light_dist = 10000.0;
+        closest_light_idx  = -1;
+
+        for idx,p_light in enumerate(self.lights):
+            delta_x = ego_pose.position.x - p_light.pose.pose.position.x
+            delta_y = ego_pose.position.y - p_light.pose.pose.position.y
+
+            dist_to_light = math.sqrt(delta_x*delta_x + delta_y*delta_y)
+
+            if (dist_to_light < closest_light_dist):
+                closest_light_dist = dist_to_light
+                closest_light_idx  = idx
+
+        # closest_light_idx is the index of the traffic light closest to us.
+        # Calculate the closest waypoint, only if the traffic light is within 100 meters
+        # TODO: This should be 100 meters in front of us. Behind doesn't matter.
+
+        light_x = self.lights[closest_light_idx].pose.pose.position.x
+        light_y = self.lights[closest_light_idx].pose.pose.position.y
+
+        # rospy.loginfo('closest traffic light idx: %s,dist: %s, light_x: %s, light_y: %s, ego_x: %s , ego_y: %s'% (closest_light_idx,closest_light_dist,light_x,light_y,ego_pose.position.x,ego_pose.position.y))
+
+        heading = math.atan2((light_y - ego_pose.position.y), (light_x - ego_pose.position.x))
+
+        quaternion = (ego_pose.orientation.x, ego_pose.orientation.y, ego_pose.orientation.z, ego_pose.orientation.w)
+        _, _, yaw = tf.transformations.euler_from_quaternion(quaternion)
+
+        angle = abs(yaw - heading)
+        # rospy.loginfo('angle: %s\n' % angle)
+
+        # if (True) :
+        if (angle < (math.pi / 4) and closest_light_dist <100 ) :
+            # As asked, now find the which waypoint does this lie closest to.
+            closest_wp_dist = 10000.0;
+            closest_wp_idx  = -1;
+            for idx,waypt in enumerate(self.waypoints.waypoints):
+                delta_x = light_x - waypt.pose.pose.position.x
+                delta_y = light_y - waypt.pose.pose.position.y
+                dist_to_wp = math.sqrt(delta_x*delta_x + delta_y*delta_y)
+
+                if (dist_to_wp < closest_wp_dist):
+                    closest_wp_dist = dist_to_wp
+                    closest_wp_idx  = idx
+        else:
+            closest_wp_idx = -1
+
+        # rospy.loginfo('closest waypt to light idx: %s, light_x: %s, light_y: %s, wp_x: %s , wp_y: %s'% (closest_wp_idx,light_x,light_y, self.waypoints.waypoints[closest_wp_idx].pose.pose.position.x,
+        #                                             self.waypoints.waypoints[closest_wp_idx].pose.pose.position.y))
+
+
+        return closest_wp_idx, closest_light_idx
+
 
     def get_light_state(self, light):
         """Determines the current color of the traffic light
@@ -135,19 +188,40 @@ class TLDetector(object):
 
         # List of positions that correspond to the line to stop in front of for a given intersection
         stop_line_positions = self.config['stop_line_positions']
-        if(self.pose):
-            car_position = self.get_closest_waypoint(self.pose.pose)
+
+        # rospy.loginfo('in process_traffic_lights')
 
         #TODO find the closest visible traffic light (if one exists)
+        if(self.pose and self.waypoints):
+            waypt_closest_to_light, idx_lightpost = self.get_closest_waypoint(self.pose.pose)
+            state_closest_traffic_light = self.lights[idx_lightpost].state
+            # rospy.loginfo('Closest waypt: %s, state: %s' % (waypt_closest_to_light,state_closest_traffic_light))
+            #TODO: Delete this next publish line.. Using only for debugging
+            # if (state_closest_traffic_light==0):
+                # rospy.loginfo('Traffic light red')
+                # self.upcoming_red_light_pub.publish(Int32(waypt_closest_to_light))
 
-        if light:
-            state = self.get_light_state(light)
-            return light_wp, state
-        self.waypoints = None
-        return -1, TrafficLight.UNKNOWN
+        # Use this after the image processing is done.
+
+        # if light:
+        #     state = self.get_light_state(light)
+        #     return light_wp, state
+        # self.waypoints = None
+        # return -1, TrafficLight.UNKNOWN
+
+        if(waypt_closest_to_light==-1):
+            state = TrafficLight.UNKNOWN
+            light_wp = -1
+        else:
+            state  = state_closest_traffic_light
+            light_wp = waypt_closest_to_light
+
+        return light_wp, state
+
 
 if __name__ == '__main__':
     try:
         TLDetector()
     except rospy.ROSInterruptException:
         rospy.logerr('Could not start traffic node.')
+
