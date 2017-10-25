@@ -5,9 +5,11 @@ ONE_MPH = 0.44704
 
 import rospy
 from pid import PID
+from lowpass import LowPassFilter
 
 class TwistController(object):
-    def __init__(self, pid_velocity_params,vehicle_mass, accel_limit, decel_limit,wheel_radius, yaw_controller):
+    def __init__(self, pid_velocity_params,vehicle_mass, accel_limit,
+                 decel_limit,wheel_radius, yaw_controller):
 
         # TODO: Implement
         self.pid_velocity_params = pid_velocity_params
@@ -16,7 +18,8 @@ class TwistController(object):
         self.decel_limit = decel_limit
         self.wheel_radius = wheel_radius
         self.yaw_controller = yaw_controller
-
+        self.lpf_steer = LowPassFilter(0.2, 0.1) # 10 Hz cutoff
+        self.lpf_velocity = LowPassFilter(0.2, 0.1) # 50 Hz cuttoff freq. 10Hz sample time for velocity cmds
         # Create a pid controller of the velocity control
         # Changed mn and mx to values provided in dbw_node
         # Pawel Cisek 23.10
@@ -27,11 +30,10 @@ class TwistController(object):
 
         # Per Pawel, we can use YawController instead of another pid for steering.
 
-        # Timers for the logitudinal controller. Not sure if we can rely on 50Hz rate.
-        self.prev_vel_msg_time = 0.0
 
     # def control(self, *args, **kwargs):
-    def control(self, dbw_enabled,  loop_rate, twist_cmd_twist, current_velocity_twist):
+    def control(self, dbw_enabled, twist_cmd_twist,
+                      current_velocity_twist, delta_time):
 
         # TODO: Change the arg, kwarg list to suit your needs
         throttle = brake = steering = 0.0
@@ -39,10 +41,14 @@ class TwistController(object):
         if dbw_enabled:
 
             # Velocity controller
-            velocity_error_mps =  twist_cmd_twist.linear.x - current_velocity_twist.linear.x
+            velocity_error_mps = twist_cmd_twist.linear.x - current_velocity_twist.linear.x
+
+            #Low pass filter the velocity error
+            # velocity_error_mps = self.lpf_velocity.filt(velocity_error_mps)
+
             # Call the step function of the velocity controller to get new control value
-            sample_time = 1.0/loop_rate
-            throttle = self.velocity_controller.step(velocity_error_mps, sample_time)
+            throttle = self.velocity_controller.step(velocity_error_mps, delta_time)
+            throttle = self.lpf_velocity.filt(throttle)
             # rospy.loginfo('in twist_controller, throttle = %s'% throttle)
 
             # If the throttle value is negative, that means we need to brake
@@ -64,6 +70,7 @@ class TwistController(object):
 
             # Steering controller - Using the YawController
             steering = self.calculate_steering(twist_cmd_twist, current_velocity_twist)
+            steering = self.lpf_steer.filt(steering)
 
 
         else:
@@ -78,4 +85,3 @@ class TwistController(object):
         angular_velocity = twist_cmd_twist.angular.z
         current_velocity = current_velocity_twist.linear.x
         return self.yaw_controller.get_steering(linear_velocity, angular_velocity, current_velocity)
-

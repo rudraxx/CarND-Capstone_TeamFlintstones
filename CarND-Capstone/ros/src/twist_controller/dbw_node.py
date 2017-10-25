@@ -55,23 +55,25 @@ class DBWNode(object):
         self.brake_pub = rospy.Publisher('/vehicle/brake_cmd',
                                          BrakeCmd, queue_size=1)
 
+
         # TODO: Create `TwistController` object
         # specify the controller gain parameters
         #1) Velocity controller
-        self.velocity_control_params = [0.3, 0.0, 0.0]
+        #self.velocity_control_params = [0.3, 0.01, 0.02]
+        self.velocity_control_params = [0.3, 0.01,0.02]
 
         #2 Yaw controller
         yaw_controller = YawController(wheel_base, steer_ratio, ONE_MPH, max_lat_accel, max_steer_angle)
         total_vehicle_mass = vehicle_mass + fuel_capacity * GAS_DENSITY
 
         # Initalize the TwistController object
-        self.controller = TwistController(self.velocity_control_params,
-                                          total_vehicle_mass, accel_limit, decel_limit,wheel_radius, yaw_controller)
+        self.controller = TwistController(self.velocity_control_params,total_vehicle_mass,
+                                            accel_limit, decel_limit,wheel_radius, yaw_controller)
 
         # TODO: Subscribe to all the topics you need to
-        rospy.Subscriber('/current_velocity',TwistStamped,self.cv_callback)
-        rospy.Subscriber('/twist_cmd',TwistStamped,self.twist_callback)
-        rospy.Subscriber('/vehicle/dbw_enabled',Bool,self.dbw_callback)
+        rospy.Subscriber('/current_velocity',TwistStamped,self.cv_callback, queue_size=1)
+        rospy.Subscriber('/twist_cmd',TwistStamped,self.twist_callback, queue_size=1)
+        rospy.Subscriber('/vehicle/dbw_enabled',Bool,self.dbw_callback, queue_size=1)
 
         self.dbw_enabled = False
 
@@ -85,6 +87,10 @@ class DBWNode(object):
         # self.actual_linear_vel  = 0.0
         # self.actual_ang_vel     = 0.0
 
+        # Timers for the logitudinal controller. Not sure if we can rely on 50Hz rate.
+        self.prev_vel_msg_time = 0.0
+
+        # Specify the loop rate for the node
         self.loop_rate = 50.0
         self.loop()
 
@@ -114,15 +120,19 @@ class DBWNode(object):
             # TODO: Get predicted throttle, brake, and steering using `twist_controller`
             # You should only publish the control commands if dbw is enabled
 
+            current_time = rospy.get_time()
+            delta_time =  current_time - self.prev_vel_msg_time
+
+            self.prev_vel_msg_time  = current_time
 
             # calculate the velocity error . in meter / sec
             # velocity_error_mps =  self.desired_linear_vel - self.actual_linear_vel
 
             # Use dbw value to reset the controller states if needed.
             throttle, brake, steering = self.controller.control(self.dbw_enabled,
-                                                                self.loop_rate,
                                                                 self.twist_cmd_twist,
-                                                                self.current_velocity_twist)
+                                                                self.current_velocity_twist,
+                                                                delta_time)
             # rospy.loginfo('dbw_enable: %s, vel_error: %s , throttle: %s \n '% (self.dbw_enabled, velocity_error_mps, throttle))
             rospy.loginfo('throttle: %s, brake: %s, steering: %s  \n '% (throttle, brake, steering))
 
