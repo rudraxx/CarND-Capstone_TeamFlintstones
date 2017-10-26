@@ -4,11 +4,13 @@ from std_msgs.msg import Int32
 from geometry_msgs.msg import PoseStamped, Pose
 from styx_msgs.msg import TrafficLightArray, TrafficLight
 from styx_msgs.msg import Lane
+from std_msgs.msg import Bool
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
 from light_classification.tl_classifier import TLClassifier
 import tf
 import cv2
+import time
 import yaml
 
 import math
@@ -22,9 +24,16 @@ class TLDetector(object):
         self.waypoints = None
         self.camera_image = None
         self.lights = []
+        self.save_images = False
 
         sub1 = rospy.Subscriber('/current_pose', PoseStamped, self.pose_cb)
         sub2 = rospy.Subscriber('/base_waypoints', Lane, self.waypoints_cb)
+
+        # colect images control
+        # START collecting rostopic pub /collect_images std_msgs/Bool true
+        # STOP collecting rostopic pub /collect_images std_msgs/Bool false
+        rospy.Subscriber('/collect_images', Bool, self.collect_images_cb)
+
 
         '''
         /vehicle/traffic_lights provides you with the location of the traffic light in 3D map space and
@@ -70,6 +79,7 @@ class TLDetector(object):
 
         """
         self.has_image = True
+        self.save_camera_images()
         self.camera_image = msg
         light_wp, state = self.process_traffic_lights()
 
@@ -173,6 +183,16 @@ class TLDetector(object):
 
         #Get classification
         return self.light_classifier.get_classification(cv_image)
+
+    def collect_images_cb(self, msg):
+        self.save_images = msg.data
+
+    def save_camera_images(self):
+        if (not self.has_image) or (not self.save_images):
+            return False
+        cv_image = self.bridge.imgmsg_to_cv2(self.camera_image, "bgr8")
+        file_path = "../images/image{0}.png".format(time.time())
+        cv2.imwrite(file_path, cv_image)
 
     def process_traffic_lights(self):
         """Finds closest visible traffic light, if one exists, and determines its
