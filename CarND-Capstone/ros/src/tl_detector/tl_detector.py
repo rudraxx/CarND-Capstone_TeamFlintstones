@@ -101,9 +101,7 @@ class TLDetector(object):
             int: index of the closest waypoint in self.waypoints
 
         """
-        #TODO implement
-
-     
+  
         closest_wp_dist = 10000.0;
         closest_wp_idx  = -1;
         for idx,waypt in enumerate(self.waypoints.waypoints):
@@ -123,7 +121,7 @@ class TLDetector(object):
         
     def get_next_stop_line(self, pose, stop_line_positions):
         # receive the car position and the stop lane positions array
-        # and return the closest dist and the index
+        # and return the closest dist and the index ahead of the vehicle
 
         closest_dist = 10000.0;
         closest_idx  = -1;        
@@ -196,22 +194,24 @@ class TLDetector(object):
             # find the next probable stop
             next_stop_line_dist, next_stop_line_idx = self.get_next_stop_line(self.pose.pose, stop_line_positions)
 
+            # rospy.loginfo("Javi: next probable stop dist = %s" %next_stop_line_dist)
             
-            rospy.loginfo("Javi: next probable stop dist = %s" %next_stop_line_dist)
-            
-            # if the next probable stop is near of 50 mts...
+            # if the next probable stop is near of 50 mts (tweak this param if needed)
             if next_stop_line_dist < 50:
                 # Get the waypoint index that we are going to send to the next node
                 light_wp = self.get_closest_waypoint(stop_line_positions[next_stop_line_idx])
-                rospy.loginfo("Javi: next probable stop wp   = %s" %light_wp)
+                #rospy.loginfo("Javi: next probable stop wp   = %s" %light_wp)
 
                 light = self.get_light_patch()
-            
 
+                # This two lines of code are only for DEBUGGING purpose as it will ignore the classfier.
+                # Comment it in the final version.
+                state = self.lights[next_stop_line_idx].state
+                return light_wp, state
 
         if light:
-            state = self.get_light_state(light)
-            return light_wp, state
+        	state = self.get_light_state(light)
+        	return light_wp, state
         #self.waypoints = None
         return -1, TrafficLight.UNKNOWN
 
