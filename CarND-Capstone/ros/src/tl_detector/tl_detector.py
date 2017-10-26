@@ -185,6 +185,8 @@ class TLDetector(object):
 
         """
         light = None
+        light_wp = -1
+        state = -1
 
         # List of positions that correspond to the line to stop in front of for a given intersection
         stop_line_positions = self.config['stop_line_positions']
@@ -201,21 +203,26 @@ class TLDetector(object):
                 # Get the waypoint index that we are going to send to the next node
                 light_wp = self.get_closest_waypoint(stop_line_positions[next_stop_line_idx])
 
-                light = self.get_light_patch() # TODO
+                # light = self.get_light_patch() # TODO
 
-                # This two lines of code are only for DEBUGGING purpose as it will ignore the classfier.
-                # Comment it in the final version.
-                state = self.lights[next_stop_line_idx].state
-                return light_wp, state
+                state_closest_traffic_light = self.lights[next_stop_line_idx].state
 
-        if light:
-            state = self.get_light_state(light)
-            return light_wp, state
-        self.waypoints = None
-        return -1, TrafficLight.UNKNOWN
+            if (light_wp==-1):
+                state = TrafficLight.UNKNOWN
+            else:
+                state = state_closest_traffic_light
+                
+        return light_wp,state
+
+        # if light:
+        #     state = self.get_light_state(light)
+        #     return light_wp, state
+        # self.waypoints = None
+        # return -1, TrafficLight.UNKNOWN
 
 if __name__ == '__main__':
     try:
         TLDetector()
     except rospy.ROSInterruptException:
         rospy.logerr('Could not start traffic node.')
+
