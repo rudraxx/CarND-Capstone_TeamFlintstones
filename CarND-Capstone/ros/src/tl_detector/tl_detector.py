@@ -64,10 +64,8 @@ class TLDetector(object):
     def image_cb(self, msg):
         """Identifies red lights in the incoming camera image and publishes the index
             of the waypoint closest to the red light's stop line to /traffic_waypoint
-
         Args:
             msg (Image): image from car-mounted camera
-
         """
         self.has_image = True
         self.camera_image = msg
@@ -87,8 +85,10 @@ class TLDetector(object):
             light_wp = light_wp if state == TrafficLight.RED else -1
             self.last_wp = light_wp
             self.upcoming_red_light_pub.publish(Int32(light_wp))
+            rospy.loginfo('MK/TL Publish light waypt: %s' % light_wp)
         else:
             self.upcoming_red_light_pub.publish(Int32(self.last_wp))
+            rospy.loginfo('MK/TL Publish last waypt: %s' % self.last_wp)
         self.state_count += 1
 
 
@@ -97,7 +97,6 @@ class TLDetector(object):
             https://en.wikipedia.org/wiki/Closest_pair_of_points_problem
         Args:
             pose (Pose): position to match a waypoint to
-
         Returns:
             int: index of the closest waypoint in self.waypoints
         """
@@ -133,6 +132,7 @@ class TLDetector(object):
         angle = abs(yaw - heading)
         # rospy.loginfo('angle: %s\n' % angle)
 
+        #closest_wp_idx = -1
         # if (True) :
         if (angle < (math.pi / 4) and closest_light_dist <100 ) :
             # As asked, now find the which waypoint does this lie closest to.
@@ -149,21 +149,18 @@ class TLDetector(object):
         else:
             closest_wp_idx = -1
 
-        # rospy.loginfo('closest waypt to light idx: %s, light_x: %s, light_y: %s, wp_x: %s , wp_y: %s'% (closest_wp_idx,light_x,light_y, self.waypoints.waypoints[closest_wp_idx].pose.pose.position.x,
-        #                                             self.waypoints.waypoints[closest_wp_idx].pose.pose.position.y))
+        rospy.loginfo('closest waypt to light idx: %s, light_x: %s, light_y: %s, wp_x: %s , wp_y: %s'% (closest_wp_idx,light_x,light_y, self.waypoints.waypoints[closest_wp_idx].pose.pose.position.x,
+                                                     self.waypoints.waypoints[closest_wp_idx].pose.pose.position.y))
 
         return closest_wp_idx, closest_light_idx
 
 
     def get_light_state(self, light):
         """Determines the current color of the traffic light
-
         Args:
             light (TrafficLight): light to classify
-
         Returns:
             int: ID of traffic light color (specified in styx_msgs/TrafficLight)
-
         """
         if(not self.has_image):
             self.prev_light_loc = None
@@ -177,11 +174,9 @@ class TLDetector(object):
     def process_traffic_lights(self):
         """Finds closest visible traffic light, if one exists, and determines its
             location and color
-
         Returns:
             int: index of waypoint closes to the upcoming stop line for a traffic light (-1 if none exists)
             int: ID of traffic light color (specified in styx_msgs/TrafficLight)
-
         """
         light = None
 
@@ -193,6 +188,9 @@ class TLDetector(object):
         #TODO find the closest visible traffic light (if one exists)
         light_wp = -1
         state = -1
+
+        #state_closest_traffic_light = TrafficLight.UNKNOWN
+        #waypt_closest_to_light = -1
 
         if(self.pose and self.waypoints):
             waypt_closest_to_light, idx_lightpost = self.get_closest_waypoint(self.pose.pose)
@@ -215,9 +213,11 @@ class TLDetector(object):
                 state = TrafficLight.UNKNOWN
                 light_wp = -1
             else:
+            	rospy.loginfo('Closest light waypt: %s, state: %s' % (waypt_closest_to_light,state_closest_traffic_light))
                 state  = state_closest_traffic_light
                 light_wp = waypt_closest_to_light
 
+        rospy.loginfo('Closest light waypt: %s, state: %s' % (light_wp,state))
         return light_wp, state
 
 
@@ -226,4 +226,3 @@ if __name__ == '__main__':
         TLDetector()
     except rospy.ROSInterruptException:
         rospy.logerr('Could not start traffic node.')
-
