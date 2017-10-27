@@ -3,6 +3,7 @@
 import rospy
 from geometry_msgs.msg import PoseStamped
 from styx_msgs.msg import Lane, Waypoint
+from std_msgs.msg import Int32
 
 import math
 import tf
@@ -23,6 +24,7 @@ TODO (for Yousuf and Aaron): Stopline location for each traffic light.
 '''
 
 LOOKAHEAD_WPS = 200 # Number of waypoints we will publish. You can change this number
+TARGET_VELOCITY = 20
 
 
 class WaypointUpdater(object):
@@ -34,6 +36,8 @@ class WaypointUpdater(object):
         rospy.Subscriber('/base_waypoints', Lane, self.waypoints_cb)
 
         # TODO: Add a subscriber for /traffic_waypoint and /obstacle_waypoint below
+	rospy.Subscriber('/traffic_waypoint', Int32, self.traffic_cb)
+	rospy.Subscriber('/obstacle_waypoint', Int32, self.obstacle_cb)
 
         # Read the below statement as
         # waypoint_updater pubishing on topic: 'final_waypoints' of type: 'Lane', with queue_size of : 1
@@ -42,6 +46,8 @@ class WaypointUpdater(object):
         # TODO: Add other member variables you need below
         self.master_lane_data = Lane()
         self.current_pose_msg = PoseStamped()
+
+        self.traffic_wp = Int32()
 
         # Logging data only once for debugging current_pose topic
         self.log_once_done = False;
@@ -109,16 +115,71 @@ class WaypointUpdater(object):
             # rospy.loginfo("array_final_waypoints size: %s"% (len(array_final_waypoints.waypoints)))
             # rospy.loginfo("LOOKAHEAD_WPS: %s"% LOOKAHEAD_WPS)
 
+	    #  calculate target velocity increment to accelerate from stop state
+	    target_velocity_mps = TARGET_VELOCITY * 0.44704
+	    velocity_increment = target_velocity_mps / LOOKAHEAD_WPS  #mph to m/s conversion factor
+
+	    first = 1
             for idx_waypt in range(LOOKAHEAD_WPS):
                 idx_waypt_to_append = (next_wp_idx + idx_waypt)% len(self.master_lane_data.waypoints)
-                waypt_to_append = self.master_lane_data.waypoints[idx_waypt_to_append]
-                waypt_to_append.twist.twist.linear.x = 10;
-                # Change the velocity of the waypt to 5 m/s. This is const value for first iteration.
+
+		waypt_to_append = self.master_lane_data.waypoints[idx_waypt_to_append]
+
+		if(first):
+			velocity = self.get_waypoint_velocity(waypt_to_append)
+			start_velocity = velocity
+			first = 0
+	        velocity_decrement = 0
+		rospy.loginfo("MK/WP1 Waypoint %s velocity %s idx %s traffic_wp %s"% (idx_waypt_to_append, velocity, idx_waypt, self.traffic_wp.data))
+		#if(self.traffic_wp.data != -1): #RED light coming up
+		waypt_to_append.twist.twist.linear.x = target_velocity_mps;
+
+		if(self.traffic_wp >= 0): #RED light coming up
+			rospy.loginfo("MK/WP2 red light coming up for waypoint %s"% idx_waypt_to_append)
+			
+			if(velocity != 0):
+				rospy.loginfo("MK/WP21 red light coming up for waypoint %s idx_waypt %s"% (idx_waypt_to_append, idx_waypt))
+				#vehicle is in motion, initiate deceleration
+				#if(idx_waypt == 0):
+				rospy.loginfo("MK/WP22 red light coming up for waypoint %s (velocity %s)"% (idx_waypt_to_append, velocity))
+					#num_waypts_to_light = self.traffic_wp.data - idx_waypt_to_append;
+				#TODO:: calculate num_waypts_to_light 
+				num_waypts_to_light = 10
+				rospy.loginfo("MK/WP23 red light coming up for waypoint %s number of waypoints to light %s"% (idx_waypt_to_append, num_waypts_to_light))
+            			#rospy.loginfo("MK/WP3 Red light coming up, initiate deceleration from waypoint %s to waypoint %s"% (self.traffic_wp, idx_waypt_to_append))
+
+				#calculate velocity decrement during first waypoint iteration
+				velocity_decrement = start_velocity / num_waypts_to_light
+
+				velocity -= velocity_decrement
+				if(velocity < 0):
+					#rest of the waypoints have zero velocity
+					velocity = 0 
+
+				rospy.loginfo("MK/WP24 decremented velocity for waypoint %s to %s (velocity_decrement %s)"% (idx_waypt_to_append, velocity, velocity_decrement))
+				waypt_to_append.twist.twist.linear.x = velocity;
+		elif ((self.traffic_wp.data < 0) and (velocity == 0)):
+		        rospy.loginfo("MK/WP4 Accelerate after red light stop for waypoint %s"% idx_waypt_to_append)
+			#no red traffic light ahead and car is stopped 
+			# => light just turned green and car needs to accelerate from zero mph
+			velocity += velocity_increment
+			if(velocity > target_velocity_mps):
+				#clamp to max velocity
+				velocity = target_velocity_mps
+			waypt_to_append.twist.twist.linear.x = velocity;
+			rospy.loginfo("MK/WP5 Red light turned green, accelerate from waypoint %s"% idx_waypt_to_append)
+		else:
+		        rospy.loginfo("MK/WP6 Set waypoint %s to target velocity %s"% (idx_waypt_to_append, target_velocity_mps))
+			waypt_to_append.twist.twist.linear.x = target_velocity_mps;
+			
+		# log 10 waypoints for debug
+		if (idx_waypt < 10):
+                	rospy.loginfo("MK/WP7 final_waypoint[%s] %s velocity = %s"% 
+					(idx_waypt, idx_waypt_to_append,waypt_to_append.twist.twist.linear.x))
+
                 array_final_waypoints.waypoints.append(waypt_to_append)
 
-                # rospy.loginfo("x values of all future waypoints.: %s"% (waypt_to_append.pose.pose.position.x ))
-
-            # rospy.loginfo("array_final_waypoints after for loop : %s"% (len(array_final_waypoints.waypoints)))
+            rospy.loginfo("MK/WP8 array_final_waypoints after for loop : %s"% (len(array_final_waypoints.waypoints)))
 
             # Publish the Lane info to the /final_waypoints topic
             self.final_waypoints_pub.publish(array_final_waypoints)
@@ -183,6 +244,8 @@ class WaypointUpdater(object):
 
     def traffic_cb(self, msg):
         # TODO: Callback for /traffic_waypoint message. Implement
+        self.traffic_wp = Int32(msg)
+        rospy.loginfo("Madhu/WU - Received traffic WP: %s" % self.traffic_wp)
         pass
 
     def obstacle_cb(self, msg):
