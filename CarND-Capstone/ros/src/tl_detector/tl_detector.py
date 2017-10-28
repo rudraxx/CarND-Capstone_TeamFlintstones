@@ -142,7 +142,7 @@ class TLDetector(object):
 
         angle = abs(yaw - heading)
         if angle > (math.pi / 4):
-            closest_idx += 1
+            closest_idx = (closest_idx + 1) % len(stop_line_positions)
             dx = pose.position.x - stop_line_positions[closest_idx][0]
             dy = pose.position.y - stop_line_positions[closest_idx][1]
             closest_dist = math.sqrt(dx*dx + dy*dy)
