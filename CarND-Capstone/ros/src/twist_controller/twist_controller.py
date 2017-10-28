@@ -81,7 +81,9 @@ class TwistController(object):
         return throttle, brake, steering
 
     def calculate_steering(self, twist_cmd_twist, current_velocity_twist):
-        linear_velocity = twist_cmd_twist.linear.x
+        linear_velocity = abs(twist_cmd_twist.linear.x)
+        if linear_velocity < 1:
+            linear_velocity = 1
         angular_velocity = twist_cmd_twist.angular.z
         current_velocity = current_velocity_twist.linear.x
         return self.yaw_controller.get_steering(linear_velocity, angular_velocity, current_velocity)

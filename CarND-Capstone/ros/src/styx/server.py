@@ -11,7 +11,8 @@ from conf import conf
 
 # abhi - adding eventlet.monkey_patch, and async mode based on discussion forum 
 # discussions.udacity.com/t/car-freezes-in-simulator-solved/363942/12
-eventlet.monkey_patch()
+# eventlet.monkey_patch()
+# sio = socketio.Server(async_mode='eventlet')
 sio = socketio.Server(async_mode='eventlet')
 
 #sio = socketio.Server()
