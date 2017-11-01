@@ -14,10 +14,10 @@ References:
 import os.path
 os.environ['TF_CPP_MIN_LOG_LEVEL']='2'
 
-from keras.applications.mobilenet import MobileNet
 from keras.preprocessing import image
-from keras.applications.mobilenet import preprocess_input
 from keras.models import load_model
+from keras.utils.generic_utils import CustomObjectScope
+from keras.applications.mobilenet import relu6, DepthwiseConv2D, preprocess_input
 import numpy as np
 
 import cv2
@@ -44,10 +44,6 @@ def decode_lights_predictions(preds, top=3):
         
     return result
 
-# load the MobileNet model 
-model_features = MobileNet(input_shape=(IMG_WIDTH, IMG_HEIGHT, 3),
-                               include_top=False, 
-                               weights='imagenet')
 
 img_path = 'test.jpg'
 img = image.load_img(img_path, target_size=(224, 224))
@@ -55,20 +51,18 @@ x = image.img_to_array(img)
 x = np.expand_dims(x, axis=0)
 x = preprocess_input(x)
 
-# get the bottleneck features from the mobilenet
-bottleneck_features = model_features.predict(x)
+# This comes from: https://github.com/fchollet/keras/issues/7431
+with CustomObjectScope({'relu6': relu6,'DepthwiseConv2D': DepthwiseConv2D}):
+    model = load_model(CAPSTONE_MODEL_PATH)
 
-# load our classfier model
-model_classification = load_model(TOP_MODEL_PATH)
 
 # use the bottleneck features to get the final classification
-class_predicted = model_classification.predict(bottleneck_features)
+class_predicted = model.predict(x)
 
 #print('Predicted:', decode_predictions(preds, top=3)[0])
 preds = decode_lights_predictions(class_predicted)
 
 print(preds)
-
 """
 orig = cv2.imread(img_path)
 

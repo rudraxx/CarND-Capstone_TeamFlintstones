@@ -15,9 +15,10 @@ os.environ['TF_CPP_MIN_LOG_LEVEL']='2'
 import pickle
 
 import numpy as np
+from keras.models import Model
 from keras.models import Sequential
 from keras.utils.np_utils import to_categorical
-from keras.layers import Dropout, Flatten, Dense
+from keras.layers import Dropout, Conv2D, Activation, Input, Reshape, GlobalAveragePooling2D
 from keras.callbacks import ModelCheckpoint, EarlyStopping
 
 from consts import *
@@ -47,19 +48,34 @@ def load_bottleneck_data():
 
 	return train_data, train_labels, validation_data, validation_labels, num_classes
 
-def define_top_model(train_data, num_classes):
+def define_top_model(train_data, classes):
 	"""
     Our top model (the classifier) goes here
     
-    """
-	model = Sequential()
-	model.add(Flatten(input_shape=train_data.shape[1:]))
-	model.add(Dense(256, activation='relu'))
-	model.add(Dropout(0.5))
-	model.add(Dense(num_classes, activation='softmax'))
+    """    
+ 
+	# parameters for mobilenet
+	alpha = 1
+	dropout = 0.5
+	shape = (1, 1, int(1024 * alpha))
 
+
+	inputs = Input(shape=(7, 7, 1024), name="feat_input_mobilenet")
+
+	x = GlobalAveragePooling2D(name='average_pooling_traffic')(inputs)
+	x = Reshape(shape, name='reshape_1_traffic')(x)
+	x = Dropout(dropout, name='dropout_traffic')(x)
+	x = Conv2D(classes, (1, 1),
+	           padding='same', name='conv_preds_traffic')(x)
+	x = Activation('softmax', name='act_softmax_traffic')(x)
+	predictions = Reshape((classes,), name='reshape_2_traffic')(x)
+
+	# Create the model
+	model = Model(inputs=inputs, outputs=predictions)
 	model.compile(optimizer='Adam',
-	              loss='categorical_crossentropy', metrics=['accuracy'])
+	              loss='categorical_crossentropy', 
+	              metrics=['accuracy'])
+
 	return model
 
 

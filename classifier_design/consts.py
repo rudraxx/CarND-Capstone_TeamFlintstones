@@ -3,6 +3,7 @@ IMG_WIDTH, IMG_HEIGHT = 224, 224
  
 # name of the file to save our model trained
 TOP_MODEL_PATH = 'bottleneck_fc_model.h5'
+CAPSTONE_MODEL_PATH = 'capstone_model.h5'
 
 # dirs for data
 TRAIN_DATA_DIR = 'data/train'
