@@ -5,6 +5,8 @@ IMG_WIDTH, IMG_HEIGHT = 224, 224
 TOP_MODEL_PATH = 'bottleneck_fc_model.h5'
 CAPSTONE_MODEL_PATH = 'capstone_model.h5'
 
+CAPSTONE_MODEL_PATH_02 = 'capstone_model_02.h5'
+
 # dirs for data
 TRAIN_DATA_DIR = '../data/train'
 VALIDATION_DATA_DIR = '../data/validation'
@@ -12,4 +14,4 @@ VALIDATION_DATA_DIR = '../data/validation'
 # number of epochs to train top model
 EPOCHS = 50
 # batch size used by flow_from_directory and predict_generator
-BATCH_SIZE = 50
+BATCH_SIZE = 32

@@ -34,7 +34,12 @@ def get_generators():
 	# horizontal flip as data augmentation
 	train_datagen = ImageDataGenerator(
 		preprocessing_function=preprocess_input,
-		horizontal_flip=True)
+		rotation_range=15,
+		horizontal_flip=True,
+		zoom_range=[0.4, 0.99],
+		shear_range=0.2,
+		width_shift_range=0.1,
+		height_shift_range=0.1)
 
 	train_generator = train_datagen.flow_from_directory(
 		TRAIN_DATA_DIR,
