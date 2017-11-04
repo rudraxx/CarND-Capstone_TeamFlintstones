@@ -6,8 +6,8 @@ TOP_MODEL_PATH = 'bottleneck_fc_model.h5'
 CAPSTONE_MODEL_PATH = 'capstone_model.h5'
 
 # dirs for data
-TRAIN_DATA_DIR = 'data/train'
-VALIDATION_DATA_DIR = 'data/validation'
+TRAIN_DATA_DIR = '../data/train'
+VALIDATION_DATA_DIR = '../data/validation'
 
 # number of epochs to train top model
 EPOCHS = 50

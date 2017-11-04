@@ -9,8 +9,8 @@ References:
 [2] https://blog.keras.io/building-powerful-image-classification-models-using-very-little-data.html
 
 """
-import os.path
-os.environ['TF_CPP_MIN_LOG_LEVEL']='2'
+#import os.path
+#os.environ['TF_CPP_MIN_LOG_LEVEL']='2'
 
 import pickle
 
@@ -92,7 +92,7 @@ def train_top_model():
 								verbose=1, save_best_only=True, mode='max')
 	# Defining early stopping callback 
 	early_stopping = EarlyStopping(monitor='val_loss', min_delta=0, 
-								  patience=10, verbose=1, mode='min')
+								  patience=30, verbose=1, mode='min')
 	
 	callbacks_list = [checkpoint, early_stopping]
 

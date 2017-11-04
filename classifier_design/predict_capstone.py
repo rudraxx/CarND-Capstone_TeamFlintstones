@@ -45,7 +45,7 @@ def decode_lights_predictions(preds, top=3):
     return result
 
 
-img_path = 'test.jpg'
+img_path = 'test.png'
 img = image.load_img(img_path, target_size=(224, 224))
 x = image.img_to_array(img)
 x = np.expand_dims(x, axis=0)
@@ -58,11 +58,14 @@ with CustomObjectScope({'relu6': relu6,'DepthwiseConv2D': DepthwiseConv2D}):
 
 # use the bottleneck features to get the final classification
 class_predicted = model.predict(x)
+print(class_predicted)
 
 #print('Predicted:', decode_predictions(preds, top=3)[0])
 preds = decode_lights_predictions(class_predicted)
 
 print(preds)
+print(preds[0][0])
+print(preds[0][1])
 """
 orig = cv2.imread(img_path)
 

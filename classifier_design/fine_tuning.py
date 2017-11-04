@@ -11,8 +11,8 @@ References:
 
 """
 
-import os.path
-os.environ['TF_CPP_MIN_LOG_LEVEL']='2'
+#import os.path
+#os.environ['TF_CPP_MIN_LOG_LEVEL']='2'
 
 from keras.applications.mobilenet import MobileNet
 from keras.preprocessing import image
@@ -24,9 +24,8 @@ from keras.models import Model
 from keras.callbacks import ModelCheckpoint, EarlyStopping
 from keras.models import Sequential
 
-import numpy as np
+#import numpy as np
 
-import cv2
 
 from consts import *
 
@@ -110,13 +109,16 @@ def fine_tuning_train():
 	callbacks_list = [checkpoint, early_stopping]
 
 
-	model.fit_generator(
+	history = model.fit_generator(
 	    train_generator,
 	    steps_per_epoch=nb_train_samples // BATCH_SIZE,
 	    epochs=EPOCHS,
 	    validation_data=validation_generator,
 	    validation_steps=nb_validation_samples // BATCH_SIZE,
 	    callbacks=callbacks_list)
+
+	#save the history to *.p file for future review
+	pickle.dump(history.history, open( "history_train_finetune.p", "wb" ))
 	
 
 fine_tuning_train()
