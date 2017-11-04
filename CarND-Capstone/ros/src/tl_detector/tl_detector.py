@@ -227,6 +227,8 @@ class TLDetector(object):
 
                 state_classifier = self.get_light_state(light)
                 rospy.loginfo("Javi: ground_truth = %s, prediction = %s" %(state_closest_traffic_light, state_classifier))
+                # This line is to use the predicted state instead of ground truth
+                state_closest_traffic_light = state_classifier
 
             if (light_wp==-1):
                 state = TrafficLight.UNKNOWN
