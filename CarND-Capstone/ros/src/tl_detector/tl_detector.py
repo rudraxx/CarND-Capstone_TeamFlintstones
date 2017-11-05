@@ -6,6 +6,7 @@ from styx_msgs.msg import TrafficLightArray, TrafficLight
 from styx_msgs.msg import Lane
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
+from time import time
 from light_classification.tl_classifier import TLClassifier
 import tf
 import cv2
@@ -13,6 +14,7 @@ import yaml
 import math
 
 STATE_COUNT_THRESHOLD = 3
+CAMERA_COUNT_THRESHOLD = 20
 
 class TLDetector(object):
     def __init__(self):
@@ -89,6 +91,7 @@ class TLDetector(object):
             self.upcoming_red_light_pub.publish(Int32(light_wp))
         else:
             self.upcoming_red_light_pub.publish(Int32(self.last_wp))
+        self.save_camera_images(state)
         self.state_count += 1
 
     def get_closest_waypoint(self, stop_line_position):
@@ -154,6 +157,21 @@ class TLDetector(object):
         # could be useful self.lights to take a more precise patch.
 
         return None
+
+    def save_camera_images(self, state):
+        if (not self.has_image) or \
+                (self.state_count >= CAMERA_COUNT_THRESHOLD or
+                         self.state_count <= STATE_COUNT_THRESHOLD):
+            return False
+        cv_image = self.bridge.imgmsg_to_cv2(self.camera_image, "bgr8")
+        file_path = None
+        if state == TrafficLight.RED:
+            file_path = "../images/red/image{0}.png".format(time())
+        elif state != TrafficLight.UNKNOWN:
+            file_path = "../images/no_red/image{0}.png".format(time())
+        if file_path:
+            cv2.imwrite(file_path, cv_image)
+
 
 
     def get_light_state(self, light):
