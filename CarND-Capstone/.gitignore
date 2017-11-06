@@ -4,3 +4,7 @@ build
 devel
 
 profile.tmp
+ros/src/images/red/*
+ros/src/images/no_red/*
+!ros/src/images/red/.gitkeep
+!ros/src/images/no_red/.gitkeep
