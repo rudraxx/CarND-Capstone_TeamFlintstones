@@ -35,13 +35,16 @@ class TLDetector(object):
         simulator. When testing on the vehicle, the color state will not be available. You'll need to
         rely on the position of the light and the camera image to predict it.
         '''
-        sub3 = rospy.Subscriber('/vehicle/traffic_lights', TrafficLightArray, self.traffic_cb)
-        sub6 = rospy.Subscriber('/image_color', Image, self.image_cb)
+        #sub3 = rospy.Subscriber('/vehicle/traffic_lights', TrafficLightArray, self.traffic_cb)
+        #sub6 = rospy.Subscriber('/image_color', Image, self.image_cb)
 
         config_string = rospy.get_param("/traffic_light_config")
         self.config = yaml.load(config_string)
 
         self.upcoming_red_light_pub = rospy.Publisher('/traffic_waypoint', Int32, queue_size=1)
+
+        ## For debugging purpose
+        self.image_label_DEBUG = rospy.Publisher('/image_label_DEBUG', Image, queue_size=1)
 
         self.bridge = CvBridge()
         self.light_classifier = TLClassifier()
@@ -51,6 +54,9 @@ class TLDetector(object):
         self.last_state = TrafficLight.UNKNOWN
         self.last_wp = -1
         self.state_count = 0
+
+        sub3 = rospy.Subscriber('/vehicle/traffic_lights', TrafficLightArray, self.traffic_cb)
+        sub6 = rospy.Subscriber('/image_color', Image, self.image_cb)
 
         rospy.spin()
 
@@ -188,10 +194,22 @@ class TLDetector(object):
             self.prev_light_loc = None
             return False
 
-        cv_image = self.bridge.imgmsg_to_cv2(self.camera_image, "bgr8")
+        cv_image = self.bridge.imgmsg_to_cv2(self.camera_image, "rgb8")
 
-        #Get classification
-        return self.light_classifier.get_classification(cv_image)
+        #Get classification        
+        light = self.light_classifier.get_classification(cv_image)        
+
+        # This code is for DEBUGGING
+        if light == 0:
+            cv2.circle(cv_image, center=(100,100), radius=30, color=(255,0,0), thickness=-1)
+
+        if light == 2:
+            cv2.circle(cv_image, center=(100,100), radius=30, color=(0,255,0), thickness=-1)
+        ros_image = self.bridge.cv2_to_imgmsg(cv_image, encoding="rgb8")
+        self.image_label_DEBUG.publish(ros_image)
+        # End of debugging
+        
+        return light
 
     def process_traffic_lights(self):
         """Finds closest visible traffic light, if one exists, and determines its
@@ -224,6 +242,11 @@ class TLDetector(object):
                 # light = self.get_light_patch() # TODO
 
                 state_closest_traffic_light = self.lights[next_stop_line_idx].state
+
+                state_classifier = self.get_light_state(light)
+                rospy.loginfo("Javi: ground_truth = %s, prediction = %s" %(state_closest_traffic_light, state_classifier))
+                # This line is to use the predicted state instead of ground truth
+                state_closest_traffic_light = state_classifier
 
             if (light_wp==-1):
                 state = TrafficLight.UNKNOWN
