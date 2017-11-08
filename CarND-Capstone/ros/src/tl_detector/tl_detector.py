@@ -54,6 +54,7 @@ class TLDetector(object):
         self.last_state = TrafficLight.UNKNOWN
         self.last_wp = -1
         self.state_count = 0
+        self.save_images = False
 
         sub3 = rospy.Subscriber('/vehicle/traffic_lights', TrafficLightArray, self.traffic_cb)
         sub6 = rospy.Subscriber('/image_color', Image, self.image_cb)
@@ -166,6 +167,7 @@ class TLDetector(object):
 
     def save_camera_images(self, state):
         if (not self.has_image) or \
+                (not self.save_images) or \
                 (self.state_count >= CAMERA_COUNT_THRESHOLD or
                          self.state_count <= STATE_COUNT_THRESHOLD):
             return False
@@ -244,7 +246,7 @@ class TLDetector(object):
                 state_closest_traffic_light = self.lights[next_stop_line_idx].state
 
                 state_classifier = self.get_light_state(light)
-                rospy.loginfo("Javi: ground_truth = %s, prediction = %s" %(state_closest_traffic_light, state_classifier))
+                # rospy.loginfo("Javi: ground_truth = %s, prediction = %s" %(state_closest_traffic_light, state_classifier))
                 # This line is to use the predicted state instead of ground truth
                 state_closest_traffic_light = state_classifier
 
