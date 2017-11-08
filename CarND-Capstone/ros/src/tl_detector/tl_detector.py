@@ -55,6 +55,7 @@ class TLDetector(object):
         self.last_wp = -1
         self.state_count = 0
 
+        self.last_state_close = 0
         sub3 = rospy.Subscriber('/vehicle/traffic_lights', TrafficLightArray, self.traffic_cb)
         sub6 = rospy.Subscriber('/image_color', Image, self.image_cb)
 
@@ -247,6 +248,16 @@ class TLDetector(object):
                 rospy.loginfo("Javi: ground_truth = %s, prediction = %s" %(state_closest_traffic_light, state_classifier))
                 # This line is to use the predicted state instead of ground truth
                 state_closest_traffic_light = state_classifier
+                if self.last_state_close == 2 and state_classifier == 0: # if true it is a yellow light
+                    if next_stop_line_dist > 10:
+                    	#if the ego car is more then 20 mts away from the sop line should stop
+                    	state_closest_traffic_light = 0
+                    else:
+                    	# else should go
+                    	state_closest_traffic_light = 2
+                self.last_state_close = state_closest_traffic_light
+            else:
+                self.last_state_close = 0
 
             if (light_wp==-1):
                 state = TrafficLight.UNKNOWN
