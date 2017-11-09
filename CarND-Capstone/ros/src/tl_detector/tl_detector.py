@@ -55,6 +55,7 @@ class TLDetector(object):
         self.last_wp = -1
         self.state_count = 0
 
+        self.last_state_close = 0
         sub3 = rospy.Subscriber('/vehicle/traffic_lights', TrafficLightArray, self.traffic_cb)
         sub6 = rospy.Subscriber('/image_color', Image, self.image_cb)
 
@@ -150,7 +151,7 @@ class TLDetector(object):
         _, _, yaw = tf.transformations.euler_from_quaternion(quaternion)
 
         angle = abs(yaw - heading)
-        if angle > (math.pi / 4):
+        if angle > (math.pi / 3):
             closest_idx = (closest_idx + 1) % len(stop_line_positions)
             dx = pose.position.x - stop_line_positions[closest_idx][0]
             dy = pose.position.y - stop_line_positions[closest_idx][1]
@@ -196,8 +197,8 @@ class TLDetector(object):
 
         cv_image = self.bridge.imgmsg_to_cv2(self.camera_image, "rgb8")
 
-        #Get classification        
-        light = self.light_classifier.get_classification(cv_image)        
+        #Get classification
+        light = self.light_classifier.get_classification(cv_image)
 
         # This code is for DEBUGGING
         if light == 0:
@@ -208,7 +209,7 @@ class TLDetector(object):
         ros_image = self.bridge.cv2_to_imgmsg(cv_image, encoding="rgb8")
         self.image_label_DEBUG.publish(ros_image)
         # End of debugging
-        
+
         return light
 
     def process_traffic_lights(self):
@@ -232,7 +233,7 @@ class TLDetector(object):
             # find the next probable stop
             next_stop_line_dist, next_stop_line_idx = self.get_next_stop_line(self.pose.pose, stop_line_positions)
 
-            #rospy.loginfo("Javi: next probable stop dist = %s" %next_stop_line_dist)
+            rospy.loginfo("Javi: next probable stop dist = %.1f, idx: %s" %(next_stop_line_dist,next_stop_line_idx))
 
             # if the next probable stop is near of 50 mts (tweak this param if needed)
             if next_stop_line_dist < 50:
@@ -244,15 +245,25 @@ class TLDetector(object):
                 state_closest_traffic_light = self.lights[next_stop_line_idx].state
 
                 state_classifier = self.get_light_state(light)
-                rospy.loginfo("Javi: ground_truth = %s, prediction = %s" %(state_closest_traffic_light, state_classifier))
+                #rospy.loginfo("Javi: ground_truth = %s, prediction = %s" %(state_closest_traffic_light, state_classifier))
                 # This line is to use the predicted state instead of ground truth
                 state_closest_traffic_light = state_classifier
+                if self.last_state_close == 2 and state_classifier == 0: # if true it is a yellow light
+                    if next_stop_line_dist > 10:
+                    	#if the ego car is more then 20 mts away from the sop line should stop
+                    	state_closest_traffic_light = 0
+                    else:
+                    	# else should go
+                    	state_closest_traffic_light = 2
+                self.last_state_close = state_closest_traffic_light
+            else:
+                self.last_state_close = 0
 
             if (light_wp==-1):
                 state = TrafficLight.UNKNOWN
             else:
                 state = state_closest_traffic_light
-                
+
         return light_wp,state
 
         # if light:
@@ -266,4 +277,3 @@ if __name__ == '__main__':
         TLDetector()
     except rospy.ROSInterruptException:
         rospy.logerr('Could not start traffic node.')
-
