@@ -121,7 +121,7 @@ class WaypointUpdater(object):
                     #waypt_to_append.twist.twist.linear.x = target_velocity_mps;
 
                     #Red light coming up
-                    if (self.light_status==2):
+                    if (self.light_status==0):
                     #if (self.traffic_wp >= 0):  # RED light coming up
                         #rospy.loginfo("MK/WP2 red light coming up for waypoint %s" % idx_waypt_to_append)
 
@@ -166,7 +166,7 @@ class WaypointUpdater(object):
                         waypt_to_append.twist.twist.linear.x = velocity;
 
                     # Green light
-                    elif(self.light_status==0):
+                    elif(self.light_status==3):
                     #elif ((self.traffic_wp < 0) and (velocity == 0)):
                         #rospy.loginfo("MK/WP4 Accelerate after red light stop for waypoint %s" % idx_waypt_to_append)
                         # no red traffic light ahead and car is stopped
@@ -182,6 +182,8 @@ class WaypointUpdater(object):
                         #rospy.loginfo(
                     #        "MK/WP5 Red light turned green, accelerate from waypoint %s" % idx_waypt_to_append)
                     else:
+                        #Other states. Not using these right Nowpass
+                        pass
                         # Yellow state
                         #rospy.loginfo(
                         #    "MK/WP6 Set waypoint %s to target velocity %s" % (idx_waypt_to_append, target_velocity_mps))
@@ -190,16 +192,16 @@ class WaypointUpdater(object):
                         # If we are closer than 20 meters, keep going.
                         # if greater than 40 meters, brake
 
-                        num_waypts_to_light = self.traffic_wp - idx_waypt_to_append
-                        if num_waypts_to_light<10 :
-                            # GO forward. No point waiting.
-                            #Set the waypoint velocity
-                            waypt_to_append.twist.twist.linear.x = target_velocity_mps
-                        else:
-                            # Since we are close to the traffic light,we should start decelerating
-                            velocity -= 0.1
-                            # Set the waypoint velocity
-                            waypt_to_append.twist.twist.linear.x = velocity
+#                        num_waypts_to_light = self.traffic_wp - idx_waypt_to_append
+#                        if num_waypts_to_light<10 :
+#                            # GO forward. No point waiting.
+#                            #Set the waypoint velocity
+#                            waypt_to_append.twist.twist.linear.x = target_velocity_mps
+#                        else:
+#                            # Since we are close to the traffic light,we should start decelerating
+#                            velocity -= 0.1
+#                            # Set the waypoint velocity
+#                            waypt_to_append.twist.twist.linear.x = velocity
 
                     # log 10 waypoints for debug
                     #if (idx_waypt < 10):
@@ -285,13 +287,9 @@ class WaypointUpdater(object):
         #self.light_status = 0,1,2 : green,yellow,red
 
         if (self.traffic_wp>0):
-            self.light_status= 1
-            self.light_loop_idx +=1
-            if (self.light_loop_idx>YELLOW_THRESHOLD):
-                self.light_status = 2
+            self.light_status= 0
         else:
-            self.light_loop_idx=0
-            self.light_status=0
+            self.light_status=3
 
         #rospy.loginfo('abhishek: self.light_loop_idx: %s, self.light_status= %s'%(self.light_loop_idx,self.light_status))
 
