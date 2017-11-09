@@ -135,17 +135,17 @@ class TLDetector(object):
 
         closest_dist = 10000.0;
         closest_idx  = -1;
-        for i in range(len(stop_line_positions)):
-            dx = pose.position.x - stop_line_positions[i][0]
-            dy = pose.position.y - stop_line_positions[i][1]
+        for i,light in enumerate(self.lights):
+            dx = pose.position.x - light.pose.pose.position.x
+            dy = pose.position.y - light.pose.pose.position.y
             dist = math.sqrt(dx*dx + dy*dy)
 
             if (dist < closest_dist):
                 closest_dist = dist
                 closest_idx  = i
 
-        heading = math.atan2((stop_line_positions[closest_idx][1] - pose.position.y),
-                             (stop_line_positions[closest_idx][0] - pose.position.x))
+        heading = math.atan2((self.lights[closest_idx].pose.pose.position.y - pose.position.y),
+                             (self.lights[closest_idx].pose.pose.position.x - pose.position.x))
 
         quaternion = (pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w)
         _, _, yaw = tf.transformations.euler_from_quaternion(quaternion)
@@ -153,9 +153,16 @@ class TLDetector(object):
         angle = abs(yaw - heading)
         if angle > (math.pi / 3):
             closest_idx = (closest_idx + 1) % len(stop_line_positions)
-            dx = pose.position.x - stop_line_positions[closest_idx][0]
-            dy = pose.position.y - stop_line_positions[closest_idx][1]
-            closest_dist = math.sqrt(dx*dx + dy*dy)
+
+        #Calculate the distance to the stop line
+        dx = pose.position.x - stop_line_positions[closest_idx][0]
+        dy = pose.position.y - stop_line_positions[closest_idx][1]
+        closest_dist = math.sqrt(dx*dx + dy*dy)
+
+        #Check if it is negative 
+        dire =abs(yaw-math.atan2(dy,dx))
+        if dire < (math.pi / 3):
+            closest_dist *= -1 
 
         return closest_dist, closest_idx
 
