@@ -166,4 +166,3 @@ if __name__ == '__main__':
         DBWNode()
     except rospy.ROSInterruptException:
         rospy.logerr('Could not start DBW node.')
-

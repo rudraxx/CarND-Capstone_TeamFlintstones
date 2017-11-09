@@ -58,7 +58,7 @@ class TwistController(object):
                 brake = -1.0*throttle # m/s2
 
                 # Convert brake value from 0 to max_decel  --> 0 to Max torque
-                brake  = brake * self.vehicle_mass * self.wheel_radius
+                brake  = 0.3*brake * self.vehicle_mass * self.wheel_radius
 
                 # Set the throttle to 0, since we are braking.
                 throttle = 0.0
