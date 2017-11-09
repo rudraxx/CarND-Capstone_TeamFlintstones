@@ -54,6 +54,7 @@ class TLDetector(object):
         self.last_state = TrafficLight.UNKNOWN
         self.last_wp = -1
         self.state_count = 0
+        self.save_images = False
 
         self.last_state_close = 0
         sub3 = rospy.Subscriber('/vehicle/traffic_lights', TrafficLightArray, self.traffic_cb)
@@ -174,6 +175,7 @@ class TLDetector(object):
 
     def save_camera_images(self, state):
         if (not self.has_image) or \
+                (not self.save_images) or \
                 (self.state_count >= CAMERA_COUNT_THRESHOLD or
                          self.state_count <= STATE_COUNT_THRESHOLD):
             return False
