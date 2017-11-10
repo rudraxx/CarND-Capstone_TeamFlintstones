@@ -134,8 +134,8 @@ class WaypointUpdater(object):
                     dist = self.distance(self.master_lane_data.waypoints,idx_waypt_to_append, idx_waypt_to_append+1)
 
                     wp_vel = math.sqrt(end_vel*end_vel - 2*MAX_DECEL*dist)
-                    new_waypt_vel = min(wp_vel,current_vel)
-                    #new_waypt_vel = min(target_velocity_mps, max(wp_vel,current_vel) )
+                    #new_waypt_vel = min(wp_vel,current_vel)
+                    new_waypt_vel = min(target_velocity_mps, wp_vel)
 
 
                     waypt_to_append.twist.twist.linear.x = new_waypt_vel
