@@ -54,6 +54,7 @@ class TLDetector(object):
         self.last_state = TrafficLight.UNKNOWN
         self.last_wp = -1
         self.state_count = 0
+        self.save_images = False
 
         self.last_state_close = 0
         sub3 = rospy.Subscriber('/vehicle/traffic_lights', TrafficLightArray, self.traffic_cb)
@@ -135,27 +136,41 @@ class TLDetector(object):
 
         closest_dist = 10000.0;
         closest_idx  = -1;
-        for i in range(len(stop_line_positions)):
-            dx = pose.position.x - stop_line_positions[i][0]
-            dy = pose.position.y - stop_line_positions[i][1]
+        for i,light in enumerate(self.lights):
+            dx = pose.position.x - light.pose.pose.position.x
+            dy = pose.position.y - light.pose.pose.position.y
             dist = math.sqrt(dx*dx + dy*dy)
 
             if (dist < closest_dist):
                 closest_dist = dist
                 closest_idx  = i
 
-        heading = math.atan2((stop_line_positions[closest_idx][1] - pose.position.y),
-                             (stop_line_positions[closest_idx][0] - pose.position.x))
+        heading = math.atan2((self.lights[closest_idx].pose.pose.position.y - pose.position.y),
+                             (self.lights[closest_idx].pose.pose.position.x - pose.position.x))
 
         quaternion = (pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w)
         _, _, yaw = tf.transformations.euler_from_quaternion(quaternion)
 
-        angle = abs(yaw - heading)
+        ang_diff =abs(yaw - heading)
+        if(ang_diff>math.pi):
+            ang_diff = 2*math.pi - ang_diff
+
+        #angle = abs(yaw - heading)#
+        angle = ang_diff
+#        rospy.loginfo('adb: yaw: %.2f ,heading: %.2f'%(yaw*180/math.pi,heading*180/math.pi))
+#        rospy.loginfo('adb: closest_idx in get_next_stop_line: %s,angle: %s'%(closest_idx,angle*180/math.pi))
         if angle > (math.pi / 3):
             closest_idx = (closest_idx + 1) % len(stop_line_positions)
-            dx = pose.position.x - stop_line_positions[closest_idx][0]
-            dy = pose.position.y - stop_line_positions[closest_idx][1]
-            closest_dist = math.sqrt(dx*dx + dy*dy)
+
+        #Calculate the distance to the stop line
+        dx = pose.position.x - stop_line_positions[closest_idx][0]
+        dy = pose.position.y - stop_line_positions[closest_idx][1]
+        closest_dist = math.sqrt(dx*dx + dy*dy)
+
+        #Check if it is negative
+        dire =abs(yaw-math.atan2(dy,dx))
+        if dire < (math.pi / 3):
+            closest_dist *= -1
 
         return closest_dist, closest_idx
 
@@ -167,6 +182,7 @@ class TLDetector(object):
 
     def save_camera_images(self, state):
         if (not self.has_image) or \
+                (not self.save_images) or \
                 (self.state_count >= CAMERA_COUNT_THRESHOLD or
                          self.state_count <= STATE_COUNT_THRESHOLD):
             return False
@@ -227,7 +243,7 @@ class TLDetector(object):
 
         # List of positions that correspond to the line to stop in front of for a given intersection
         stop_line_positions = self.config['stop_line_positions']
-        if(self.pose and self.waypoints):
+        if(self.pose and self.waypoints and self.lights ):
             #TODO find the closest visible traffic light (if one exists)
 
             # find the next probable stop
@@ -249,7 +265,7 @@ class TLDetector(object):
                 # This line is to use the predicted state instead of ground truth
                 state_closest_traffic_light = state_classifier
                 if self.last_state_close == 2 and state_classifier == 0: # if true it is a yellow light
-                    if next_stop_line_dist > 10:
+                    if next_stop_line_dist > 25:
                     	#if the ego car is more then 20 mts away from the sop line should stop
                     	state_closest_traffic_light = 0
                     else:
