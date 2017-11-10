@@ -24,7 +24,7 @@ TODO (for Yousuf and Aaron): Stopline location for each traffic light.
 '''
 
 LOOKAHEAD_WPS = 100  # Number of waypoints we will publish. You can change this number
-TARGET_VELOCITY = 30
+TARGET_VELOCITY = 45
 ENABLE_TRAFFIC_LIGHTS = True
 MAX_DECEL = -2.0 # m/s2
 
@@ -162,11 +162,11 @@ class WaypointUpdater(object):
             self.final_waypoints_pub.publish(array_final_waypoints)
 
             ###print data
-            rospy.loginfo('####****####')
-            rospy.loginfo('array_final size: %s'%len(array_final_waypoints.waypoints))
-            for i in range(LOOKAHEAD_WPS):
-                rospy.loginfo('wpt: %s, speed: %.2f' %(i, array_final_waypoints.waypoints[i].twist.twist.linear.x))
-            rospy.loginfo('@@@@@@@@')
+#            rospy.loginfo('####****####')
+#            rospy.loginfo('array_final size: %s'%len(array_final_waypoints.waypoints))
+#            for i in range(LOOKAHEAD_WPS):
+#                rospy.loginfo('adb -wpt: %s, speed: %.2f' %(i, array_final_waypoints.waypoints[i].twist.twist.linear.x))
+#            rospy.loginfo('@@@@@@@@')
 
 
     def publish_waypoints(self):
@@ -189,7 +189,8 @@ class WaypointUpdater(object):
             velocity_decrement = 0
             flag_calc_decrement = True
 
-            num_waypts_to_light = (self.traffic_wp - next_wp_idx)% len(self.master_lane_data.waypoints)
+            num_waypts_to_light = (self.traffic_wp - next_wp_idx)
+            #num_waypts_to_light = (self.traffic_wp - next_wp_idx)% len(self.master_lane_data.waypoints)
 
             if (self.light_status==0 and (num_waypts_to_light< LOOKAHEAD_WPS) and ENABLE_TRAFFIC_LIGHTS) :
                 # We have a red light coming up

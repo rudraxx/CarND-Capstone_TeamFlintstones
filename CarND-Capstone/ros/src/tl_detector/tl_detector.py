@@ -151,7 +151,14 @@ class TLDetector(object):
         quaternion = (pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w)
         _, _, yaw = tf.transformations.euler_from_quaternion(quaternion)
 
-        angle = abs(yaw - heading)
+        ang_diff =abs(yaw - heading)
+        if(ang_diff>math.pi):
+            ang_diff = 2*math.pi - ang_diff
+
+        #angle = abs(yaw - heading)#
+        angle = ang_diff
+#        rospy.loginfo('adb: yaw: %.2f ,heading: %.2f'%(yaw*180/math.pi,heading*180/math.pi))
+#        rospy.loginfo('adb: closest_idx in get_next_stop_line: %s,angle: %s'%(closest_idx,angle*180/math.pi))
         if angle > (math.pi / 3):
             closest_idx = (closest_idx + 1) % len(stop_line_positions)
 
@@ -258,7 +265,7 @@ class TLDetector(object):
                 # This line is to use the predicted state instead of ground truth
                 state_closest_traffic_light = state_classifier
                 if self.last_state_close == 2 and state_classifier == 0: # if true it is a yellow light
-                    if next_stop_line_dist > 10:
+                    if next_stop_line_dist > 25:
                     	#if the ego car is more then 20 mts away from the sop line should stop
                     	state_closest_traffic_light = 0
                     else:
