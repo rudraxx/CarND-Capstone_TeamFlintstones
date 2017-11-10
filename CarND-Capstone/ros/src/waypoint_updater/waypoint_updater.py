@@ -107,40 +107,55 @@ class WaypointUpdater(object):
             rospy.loginfo('num_waypts_to_light: %s, curr_vel: %.2f'%(num_waypts_to_light, current_vel) )
             # Start creating waypoints in reverse order.
             # WIll be much simpler to do velocity calcuations.
+            buffer_points = 10
+            if num_waypts_to_light> buffer_points:
 
-            # FOr points ahead of traffic light, set velocity value to 0.
-            for idx_waypt in range(LOOKAHEAD_WPS-1,num_waypts_to_light-10,-1):
-                idx_waypt_to_append = (next_wp_idx + idx_waypt) % len(self.master_lane_data.waypoints)
-                #Get the information about the waypoint that we will append
-                waypt_to_append = self.master_lane_data.waypoints[idx_waypt_to_append]
+                # FOr points ahead of traffic light, set velocity value to 0.
+                for idx_waypt in range(LOOKAHEAD_WPS-1,num_waypts_to_light-buffer_points,-1):
+                    idx_waypt_to_append = (next_wp_idx + idx_waypt) % len(self.master_lane_data.waypoints)
+                    #Get the information about the waypoint that we will append
+                    waypt_to_append = self.master_lane_data.waypoints[idx_waypt_to_append]
 
-                waypt_to_append.twist.twist.linear.x = 0.0
-                # Append the waypoint to the array of waypoints.
-                array_final_waypoints.waypoints.append(waypt_to_append)
+                    waypt_to_append.twist.twist.linear.x = 0.0
+                    # Append the waypoint to the array of waypoints.
+                    array_final_waypoints.waypoints.append(waypt_to_append)
 
-            #traffic light wp is 0 velocity. all others slowly increase till current velocity
-            end_vel = 0
+                #traffic light wp is 0 velocity. all others slowly increase till current velocity
+                end_vel = 0
 
-            for idx_waypt in range(num_waypts_to_light-10,-1,-1) :
+                for idx_waypt in range(num_waypts_to_light-buffer_points,-1,-1) :
 
-                idx_waypt_to_append = (next_wp_idx + idx_waypt) % len(self.master_lane_data.waypoints)
-                #Get the information about the waypoint that we will append
-                waypt_to_append = self.master_lane_data.waypoints[idx_waypt_to_append]
+                    idx_waypt_to_append = (next_wp_idx + idx_waypt) % len(self.master_lane_data.waypoints)
+                    #Get the information about the waypoint that we will append
+                    waypt_to_append = self.master_lane_data.waypoints[idx_waypt_to_append]
 
-                #next_waypt = self.master_lane_data.waypoints[idx_waypt_to_append+1]
+                    #next_waypt = self.master_lane_data.waypoints[idx_waypt_to_append+1]
 
-                dist = self.distance(self.master_lane_data.waypoints,idx_waypt_to_append, idx_waypt_to_append+1)
+                    dist = self.distance(self.master_lane_data.waypoints,idx_waypt_to_append, idx_waypt_to_append+1)
 
-                wp_vel = math.sqrt(end_vel*end_vel - 2*MAX_DECEL*dist)
-                new_waypt_vel = min(wp_vel,current_vel)
-                #new_waypt_vel = min(target_velocity_mps, max(wp_vel,current_vel) )
+                    wp_vel = math.sqrt(end_vel*end_vel - 2*MAX_DECEL*dist)
+                    new_waypt_vel = min(wp_vel,current_vel)
+                    #new_waypt_vel = min(target_velocity_mps, max(wp_vel,current_vel) )
 
 
-                waypt_to_append.twist.twist.linear.x = new_waypt_vel
-                # Append the waypoint to the array of waypoints.
-                array_final_waypoints.waypoints.append(waypt_to_append)
+                    waypt_to_append.twist.twist.linear.x = new_waypt_vel
+                    # Append the waypoint to the array of waypoints.
+                    array_final_waypoints.waypoints.append(waypt_to_append)
 
-                end_vel = wp_vel
+                    end_vel = wp_vel
+
+            else:
+
+                # Set all points to 0.....
+                for idx_waypt in range(LOOKAHEAD_WPS-1,-1,-1):
+                    idx_waypt_to_append = (next_wp_idx + idx_waypt) % len(self.master_lane_data.waypoints)
+                    #Get the information about the waypoint that we will append
+                    waypt_to_append = self.master_lane_data.waypoints[idx_waypt_to_append]
+
+                    waypt_to_append.twist.twist.linear.x = 0.0
+                    # Append the waypoint to the array of waypoints.
+                    array_final_waypoints.waypoints.append(waypt_to_append)
+
 
             array_final_waypoints.waypoints.reverse()
             # Publish the Lane info to the /final_waypoints topic
