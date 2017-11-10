@@ -160,10 +160,10 @@ class TLDetector(object):
         dy = pose.position.y - stop_line_positions[closest_idx][1]
         closest_dist = math.sqrt(dx*dx + dy*dy)
 
-        #Check if it is negative 
+        #Check if it is negative
         dire =abs(yaw-math.atan2(dy,dx))
         if dire < (math.pi / 3):
-            closest_dist *= -1 
+            closest_dist *= -1
 
         return closest_dist, closest_idx
 
@@ -236,7 +236,7 @@ class TLDetector(object):
 
         # List of positions that correspond to the line to stop in front of for a given intersection
         stop_line_positions = self.config['stop_line_positions']
-        if(self.pose and self.waypoints):
+        if(self.pose and self.waypoints and self.lights ):
             #TODO find the closest visible traffic light (if one exists)
 
             # find the next probable stop
