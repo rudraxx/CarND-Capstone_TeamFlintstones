@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 import rospy
 from std_msgs.msg import Int32
-from geometry_msgs.msg import PoseStamped, Pose
+from geometry_msgs.msg import PoseStamped, Pose, TwistStamped
 from styx_msgs.msg import TrafficLightArray, TrafficLight
 from styx_msgs.msg import Lane
 from sensor_msgs.msg import Image
@@ -60,10 +60,17 @@ class TLDetector(object):
         sub3 = rospy.Subscriber('/vehicle/traffic_lights', TrafficLightArray, self.traffic_cb)
         sub6 = rospy.Subscriber('/image_color', Image, self.image_cb)
 
+        sub7 = rospy.Subscriber('/current_velocity', TwistStamped, self.velocity_cb)
+
+        self.current_twist_msg = TwistStamped()
+
         rospy.spin()
 
     def pose_cb(self, msg):
         self.pose = msg
+
+    def velocity_cb(self,msg):
+        self.current_twist_msg = msg
 
     def waypoints_cb(self, waypoints):
         self.waypoints = waypoints
@@ -240,6 +247,7 @@ class TLDetector(object):
         light = None
         light_wp = -1
         state = -1
+        config_max_decel = -2.0#rospy.get_param('~decel_limit',-5.0)
 
         # List of positions that correspond to the line to stop in front of for a given intersection
         stop_line_positions = self.config['stop_line_positions']
@@ -250,6 +258,15 @@ class TLDetector(object):
             next_stop_line_dist, next_stop_line_idx = self.get_next_stop_line(self.pose.pose, stop_line_positions)
 
             rospy.loginfo("Javi: next probable stop dist = %.1f, idx: %s" %(next_stop_line_dist,next_stop_line_idx))
+
+            #CCalculate the minimum stopping distance        self.current_twist_msg = msg
+            curr_vel = self.current_twist_msg.twist.linear.x
+            if  (curr_vel > 1 ):
+                min_stopping_distance = math.sqrt( -1.0*curr_vel*curr_vel / (2.0*config_max_decel))
+            else:
+                min_stopping_distance = 10.0
+
+            rospy.loginfo("abhi:vel: %.1f,  min_stopping dist= %.1f" %(curr_vel,min_stopping_distance))
 
             # if the next probable stop is near of 50 mts (tweak this param if needed)
             if next_stop_line_dist < 50:
@@ -265,12 +282,13 @@ class TLDetector(object):
                 # This line is to use the predicted state instead of ground truth
                 state_closest_traffic_light = state_classifier
                 if self.last_state_close == 2 and state_classifier == 0: # if true it is a yellow light
-                    if next_stop_line_dist > 25:
-                    	#if the ego car is more then 20 mts away from the sop line should stop
+                    if next_stop_line_dist > min_stopping_distance:
+                    	# else should go
                     	state_closest_traffic_light = 0
                     else:
-                    	# else should go
+                    	#if the ego car is more then stopping distance.
                     	state_closest_traffic_light = 2
+
                 self.last_state_close = state_closest_traffic_light
             else:
                 self.last_state_close = 0
