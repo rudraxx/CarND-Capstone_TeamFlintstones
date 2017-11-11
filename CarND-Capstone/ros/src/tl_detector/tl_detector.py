@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 import rospy
 from std_msgs.msg import Int32
-from geometry_msgs.msg import PoseStamped, Pose
+from geometry_msgs.msg import PoseStamped, Pose, TwistStamped
 from styx_msgs.msg import TrafficLightArray, TrafficLight
 from styx_msgs.msg import Lane
 from sensor_msgs.msg import Image
@@ -15,6 +15,11 @@ import math
 
 STATE_COUNT_THRESHOLD = 3
 CAMERA_COUNT_THRESHOLD = 20
+
+# divisor of the stopping distance formula:
+# 2(coefficient of friction)(gravitational acceleration)
+# http://hyperphysics.phy-astr.gsu.edu/hbase/crstp.html
+BREAK_DIST_DIVIDER = 2 * 0.7 * 9.8
 
 class TLDetector(object):
     def __init__(self):
@@ -57,6 +62,7 @@ class TLDetector(object):
         self.save_images = False
 
         self.last_state_close = 0
+        rospy.Subscriber('/current_velocity', TwistStamped, self.velocity_cb)
         sub3 = rospy.Subscriber('/vehicle/traffic_lights', TrafficLightArray, self.traffic_cb)
         sub6 = rospy.Subscriber('/image_color', Image, self.image_cb)
 
@@ -67,6 +73,9 @@ class TLDetector(object):
 
     def waypoints_cb(self, waypoints):
         self.waypoints = waypoints
+
+    def velocity_cb(self, msg):
+        self.current_twist_msg = msg
 
     def traffic_cb(self, msg):
         self.lights = msg.lights
@@ -264,8 +273,11 @@ class TLDetector(object):
                 #rospy.loginfo("Javi: ground_truth = %s, prediction = %s" %(state_closest_traffic_light, state_classifier))
                 # This line is to use the predicted state instead of ground truth
                 state_closest_traffic_light = state_classifier
+                current_velocity = self.current_twist_msg.twist.linear.x
+                stopping_dist = current_velocity / BREAK_DIST_DIVIDER
+                state_closest_traffic_light = state_classifier
                 if self.last_state_close == 2 and state_classifier == 0: # if true it is a yellow light
-                    if next_stop_line_dist > 25:
+                    if next_stop_line_dist > stopping_dist:
                     	#if the ego car is more then 20 mts away from the sop line should stop
                     	state_closest_traffic_light = 0
                     else:
