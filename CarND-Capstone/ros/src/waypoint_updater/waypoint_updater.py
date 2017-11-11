@@ -26,7 +26,8 @@ TODO (for Yousuf and Aaron): Stopline location for each traffic light.
 LOOKAHEAD_WPS = 100  # Number of waypoints we will publish. You can change this number
 TARGET_VELOCITY = 45
 ENABLE_TRAFFIC_LIGHTS = True
-MAX_DECEL = -2.0 # m/s2
+DESIRED_DECEL = -2.0 # m/s2
+#DESIRED_DECEL =rospy.get_param('~decel_limit',-5.0)
 
 class WaypointUpdater(object):
     def __init__(self):
@@ -133,7 +134,7 @@ class WaypointUpdater(object):
 
                     dist = self.distance(self.master_lane_data.waypoints,idx_waypt_to_append, idx_waypt_to_append+1)
 
-                    wp_vel = math.sqrt(end_vel*end_vel - 2*MAX_DECEL*dist)
+                    wp_vel = math.sqrt(end_vel*end_vel - 2*DESIRED_DECEL*dist)
                     #new_waypt_vel = min(wp_vel,current_vel)
                     new_waypt_vel = min(target_velocity_mps, wp_vel)
 
