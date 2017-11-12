@@ -58,7 +58,7 @@ class TwistController(object):
                 brake = -1.0*throttle # m/s2
 
                 # Convert brake value from 0 to max_decel  --> 0 to Max torque
-                brake  = brake * self.vehicle_mass * self.wheel_radius
+                brake  = 1.0*brake * self.vehicle_mass * self.wheel_radius
 
                 # Set the throttle to 0, since we are braking.
                 throttle = 0.0
@@ -81,7 +81,9 @@ class TwistController(object):
         return throttle, brake, steering
 
     def calculate_steering(self, twist_cmd_twist, current_velocity_twist):
-        linear_velocity = twist_cmd_twist.linear.x
+        linear_velocity = abs(twist_cmd_twist.linear.x)
+        if linear_velocity < 1:
+            linear_velocity = 1
         angular_velocity = twist_cmd_twist.angular.z
         current_velocity = current_velocity_twist.linear.x
         return self.yaw_controller.get_steering(linear_velocity, angular_velocity, current_velocity)

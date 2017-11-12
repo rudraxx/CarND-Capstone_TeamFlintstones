@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import rospy
-from geometry_msgs.msg import PoseStamped
+from geometry_msgs.msg import PoseStamped, TwistStamped
 from styx_msgs.msg import Lane, Waypoint
 from std_msgs.msg import Int32
 
@@ -23,9 +23,17 @@ as well as to verify your TL classifier.
 TODO (for Yousuf and Aaron): Stopline location for each traffic light.
 '''
 
+<<<<<<< HEAD
 LOOKAHEAD_WPS = 200 # Number of waypoints we will publish. You can change this number
 TARGET_VELOCITY = 20
 ENABLE_TRAFFIC_LIGHTS= 0
+=======
+LOOKAHEAD_WPS = 100  # Number of waypoints we will publish. You can change this number
+TARGET_VELOCITY = 45
+ENABLE_TRAFFIC_LIGHTS = True
+DESIRED_DECEL = -2.0 # m/s2
+#DESIRED_DECEL =rospy.get_param('~decel_limit',-5.0)
+>>>>>>> 08bdc52c497561aa189d82d97ac9da82e31ff562
 
 class WaypointUpdater(object):
     def __init__(self):
@@ -36,8 +44,10 @@ class WaypointUpdater(object):
         rospy.Subscriber('/base_waypoints', Lane, self.waypoints_cb)
 
         # TODO: Add a subscriber for /traffic_waypoint and /obstacle_waypoint below
-	rospy.Subscriber('/traffic_waypoint', Int32, self.traffic_cb)
-	rospy.Subscriber('/obstacle_waypoint', Int32, self.obstacle_cb)
+        rospy.Subscriber('/traffic_waypoint', Int32, self.traffic_cb)
+        rospy.Subscriber('/obstacle_waypoint', Int32, self.obstacle_cb)
+
+        rospy.Subscriber('/current_velocity', TwistStamped, self.velocity_cb)
 
         # Read the below statement as
         # waypoint_updater pubishing on topic: 'final_waypoints' of type: 'Lane', with queue_size of : 1
@@ -47,26 +57,19 @@ class WaypointUpdater(object):
         self.master_lane_data = Lane()
         self.current_pose_msg = PoseStamped()
 
-        self.traffic_wp = Int32()
+        self.traffic_wp = -1
+        self.light_status = None
+        self.current_twist_msg = TwistStamped()
 
         # Logging data only once for debugging current_pose topic
-        self.log_once_done = False;
-        self.received_waypoints = False;
-
-        # Additional data
-        # Ego pose data
-        self.x = 0.0 # world frame, meters
-        self.y = 0.0 # world frame, meters
-        self.heading = 0.0 # world frame, radians
-
-        # Publisher related
-        # self.publish_rate = 10; # 10 Hz
+        self.log_once_done = False
+        self.received_waypoints = False
 
         self.loop()
         # rospy.spin()
 
     def loop(self):
-        rate = rospy.Rate(50) # 50Hz
+        rate = rospy.Rate(50)  # 50Hz
         while not rospy.is_shutdown():
             self.publish_waypoints()
             rate.sleep()
@@ -76,38 +79,120 @@ class WaypointUpdater(object):
         if not self.log_once_done:
             rospy.loginfo("Logging data for the full current pose message as reference:")
             rospy.loginfo(msg)
-            rospy.loginfo("Logging only position data, curret_pose. x: %s,y: %s, z: %s" % (msg.pose.position.x,msg.pose.position.y,msg.pose.position.z))
+            rospy.loginfo("Logging only position data, curret_pose. x: %s,y: %s, z: %s" % (
+            msg.pose.position.x, msg.pose.position.y, msg.pose.position.z))
             self.log_once_done = True
 
-        # Update current pose
-        self.x = msg.pose.position.x
-        self.y = msg.pose.position.y
+        # Update current pose msg
         self.current_pose_msg = msg
-        # current_pose orientation is in quaternions. Not sure we need this just yet.
-        # If needed, will have to include a method to convert quaternion to euler angles.
-        # self.heading = msg.pose.orientation.z
 
-        # # Preventing case when pose data comes before the waypoint data for the first iteration. In that case, we wont have any waypoint info.
-        # if(self.received_waypoints):
-        #     self.publish_waypoints()
-        #     # self.received_waypoints = False # temp for debugging. delete this line.
-        # # pass
+    def velocity_cb(self,msg):
+        self.current_twist_msg = msg
+
+    def accelerate(self,target_velocity_mps,velocity_increment,next_wp_idx,array_final_waypoints):
+
+        for idx_waypt in range(LOOKAHEAD_WPS):
+            idx_waypt_to_append = (next_wp_idx + idx_waypt) % len(self.master_lane_data.waypoints)
+
+            #Get the information about the waypoint that we will append
+            waypt_to_append = self.master_lane_data.waypoints[idx_waypt_to_append]
+            #current_wp_vel = self.get_waypoint_velocity(waypt_to_append)
+            current_vel = self.current_twist_msg.twist.linear.x
+
+            #new_waypt_vel = min(current_vel+velocity_increment,target_velocity_mps)
+            new_waypt_vel = target_velocity_mps
+
+            waypt_to_append.twist.twist.linear.x = new_waypt_vel
+            # Append the waypoint to the array of waypoints.
+            array_final_waypoints.waypoints.append(waypt_to_append)
+
+        # Publish the Lane info to the /final_waypoints topic
+        self.final_waypoints_pub.publish(array_final_waypoints)
+
+    def decelerate(self,target_velocity_mps,next_wp_idx,array_final_waypoints,num_waypts_to_light):
+            current_vel = self.current_twist_msg.twist.linear.x
+            rospy.loginfo('num_waypts_to_light: %s, curr_vel: %.2f'%(num_waypts_to_light, current_vel) )
+            # Start creating waypoints in reverse order.
+            # WIll be much simpler to do velocity calcuations.
+            buffer_points = 10
+            if num_waypts_to_light> buffer_points:
+
+                # FOr points ahead of traffic light, set velocity value to 0.
+                for idx_waypt in range(LOOKAHEAD_WPS-1,num_waypts_to_light-buffer_points,-1):
+                    idx_waypt_to_append = (next_wp_idx + idx_waypt) % len(self.master_lane_data.waypoints)
+                    #Get the information about the waypoint that we will append
+                    waypt_to_append = self.master_lane_data.waypoints[idx_waypt_to_append]
+
+                    waypt_to_append.twist.twist.linear.x = 0.0
+                    # Append the waypoint to the array of waypoints.
+                    array_final_waypoints.waypoints.append(waypt_to_append)
+
+                #traffic light wp is 0 velocity. all others slowly increase till current velocity
+                end_vel = 0
+
+                for idx_waypt in range(num_waypts_to_light-buffer_points,-1,-1) :
+
+                    idx_waypt_to_append = (next_wp_idx + idx_waypt) % len(self.master_lane_data.waypoints)
+                    #Get the information about the waypoint that we will append
+                    waypt_to_append = self.master_lane_data.waypoints[idx_waypt_to_append]
+
+                    #next_waypt = self.master_lane_data.waypoints[idx_waypt_to_append+1]
+
+                    dist = self.distance(self.master_lane_data.waypoints,idx_waypt_to_append, idx_waypt_to_append+1)
+
+                    wp_vel = math.sqrt(end_vel*end_vel - 2*DESIRED_DECEL*dist)
+                    #new_waypt_vel = min(wp_vel,current_vel)
+                    new_waypt_vel = min(target_velocity_mps, wp_vel)
+
+
+                    waypt_to_append.twist.twist.linear.x = new_waypt_vel
+                    # Append the waypoint to the array of waypoints.
+                    array_final_waypoints.waypoints.append(waypt_to_append)
+
+                    end_vel = wp_vel
+
+            else:
+
+                # Set all points to 0.....
+                for idx_waypt in range(LOOKAHEAD_WPS-1,-1,-1):
+                    idx_waypt_to_append = (next_wp_idx + idx_waypt) % len(self.master_lane_data.waypoints)
+                    #Get the information about the waypoint that we will append
+                    waypt_to_append = self.master_lane_data.waypoints[idx_waypt_to_append]
+
+                    waypt_to_append.twist.twist.linear.x = 0.0
+                    # Append the waypoint to the array of waypoints.
+                    array_final_waypoints.waypoints.append(waypt_to_append)
+
+
+            array_final_waypoints.waypoints.reverse()
+            # Publish the Lane info to the /final_waypoints topic
+            self.final_waypoints_pub.publish(array_final_waypoints)
+
+            ###print data
+#            rospy.loginfo('####****####')
+#            rospy.loginfo('array_final size: %s'%len(array_final_waypoints.waypoints))
+#            for i in range(LOOKAHEAD_WPS):
+#                rospy.loginfo('adb -wpt: %s, speed: %.2f' %(i, array_final_waypoints.waypoints[i].twist.twist.linear.x))
+#            rospy.loginfo('@@@@@@@@')
+
 
     def publish_waypoints(self):
 
         # Preventing case when pose data comes before the waypoint data for the first iteration. In that case, we wont have any waypoint info.
-        if(self.received_waypoints):
+        if (self.received_waypoints):
 
-        # 1) Find the closest waypoint to the current position:
-            # Get distance of this waypt to the current pose
+            # 1) Find the closest waypoint to the current position:
+            next_wp_idx = self.get_next_waypoint(self.current_pose_msg.pose, self.master_lane_data.waypoints)
             # rospy.loginfo("Calculating closest waypoint: current_x: %s, current_y: %s"% (self.current_pose_msg.pose.position.x,self.current_pose_msg.pose.position.y))
 
-            next_wp_idx = self.get_next_waypoint(self.current_pose_msg.pose,self.master_lane_data.waypoints)
+            # 2) Now that we have the closest waypoint, create a new list for the next LOOKAHEAD_WPS waypoints.
+            array_final_waypoints = Lane()
 
-            # Log some information about the closest waypt.
-            # rospy.loginfo("Closest waypoint - idx: %s, dist: %s"% (closest_wp_idx,closest_wp_dist))
-            # rospy.loginfo(self.master_lane_data.waypoints[closest_wp_idx])
+            #  calculate target velocity increment to accelerate from stop state
+            target_velocity_mps = TARGET_VELOCITY * 0.44704
+            velocity_increment = target_velocity_mps / LOOKAHEAD_WPS  # mph to m/s conversion factor
 
+<<<<<<< HEAD
        # 2) Now that we have the closest waypoint, create a new list for the final waypoints
             # Get the next LOOKAHEAD_WPS waypoints.
             # How to check if the closest waypoint is ahead or behind us?
@@ -182,13 +267,26 @@ class WaypointUpdater(object):
                 array_final_waypoints.waypoints.append(waypt_to_append)
 
             rospy.loginfo("MK/WP8 array_final_waypoints after for loop : %s"% (len(array_final_waypoints.waypoints)))
+=======
+            flag_first_waypt = True
+            velocity_decrement = 0
+            flag_calc_decrement = True
+>>>>>>> 08bdc52c497561aa189d82d97ac9da82e31ff562
 
-            # Publish the Lane info to the /final_waypoints topic
-            self.final_waypoints_pub.publish(array_final_waypoints)
+            num_waypts_to_light = (self.traffic_wp - next_wp_idx)
+            #num_waypts_to_light = (self.traffic_wp - next_wp_idx)% len(self.master_lane_data.waypoints)
 
-    def get_next_waypoint(self,ego_pose,waypoints):
+            if (self.light_status==0 and (num_waypts_to_light< LOOKAHEAD_WPS) and ENABLE_TRAFFIC_LIGHTS) :
+                # We have a red light coming up
+                self.decelerate(target_velocity_mps,next_wp_idx,array_final_waypoints,num_waypts_to_light)
+            else:
+                # No red light increment velocity to target velocity
+                self.accelerate(target_velocity_mps,velocity_increment,next_wp_idx,array_final_waypoints)
 
-        next_wp_idx = self.get_closest_waypoint(ego_pose,waypoints)
+
+    def get_next_waypoint(self, ego_pose, waypoints):
+
+        next_wp_idx = self.get_closest_waypoint(ego_pose, waypoints)
 
         map_x = waypoints[next_wp_idx].pose.pose.position.x
         map_y = waypoints[next_wp_idx].pose.pose.position.y
@@ -212,31 +310,29 @@ class WaypointUpdater(object):
 
         return next_wp_idx
 
-
-    def get_closest_waypoint(self,ego_pose,waypoints):
+    def get_closest_waypoint(self, ego_pose, waypoints):
 
         closest_wp_dist = 10000.0;
-        closest_wp_idx  = -1;
+        closest_wp_idx = -1;
 
-        for idx,waypt in enumerate(waypoints):
+        for idx, waypt in enumerate(waypoints):
             delta_x = ego_pose.position.x - waypt.pose.pose.position.x
             delta_y = ego_pose.position.y - waypt.pose.pose.position.y
             delta_z = ego_pose.position.z - waypt.pose.pose.position.z
-            dist_to_wp = math.sqrt(delta_x*delta_x + delta_y*delta_y + delta_z*delta_z)
+            dist_to_wp = math.sqrt(delta_x * delta_x + delta_y * delta_y + delta_z * delta_z)
 
             if (dist_to_wp < closest_wp_dist):
                 closest_wp_dist = dist_to_wp
-                closest_wp_idx  = idx
+                closest_wp_idx = idx
 
         return closest_wp_idx
-
 
     def waypoints_cb(self, waypoints):
         # TODO: Implement
         # Save waypoints in a variable, since the sender node /waypoint_loader publishes these only once.
         rospy.loginfo("abhishek - Received waypoints: %s" % str(len(waypoints.waypoints)))
         self.master_lane_data.waypoints = waypoints.waypoints
-        rospy.loginfo("abhishek - waypoints in master_lane_data: %s" % len(self.master_lane_data.waypoints) )
+        rospy.loginfo("abhishek - waypoints in master_lane_data: %s" % len(self.master_lane_data.waypoints))
         rospy.loginfo("Logging data for first waypoint as reference...")
         rospy.loginfo(self.master_lane_data.waypoints[0])
         # rospy.loginfo("Logging data for 272th waypoint as reference...")
@@ -245,10 +341,23 @@ class WaypointUpdater(object):
         self.received_waypoints = True
 
     def traffic_cb(self, msg):
+
         # TODO: Callback for /traffic_waypoint message. Implement
-        self.traffic_wp = Int32(msg)
+        self.traffic_wp = msg.data
         rospy.loginfo("Madhu/WU - Received traffic WP: %s" % self.traffic_wp)
-        pass
+
+        # 06 Nov,abhishek: Adding logic for detecting yellow light, since the image classifier isn't giving us that information.
+        # Looking for when the light changes from green to red. Then assuming that light is yellow for 10 loops. Since the traffic data is coming in at 10 Hz
+        #self.light_status = 0,1,2 : green,yellow,red
+
+        if (self.traffic_wp>0):
+            self.light_status= 0
+        else:
+            self.light_status=2
+
+        #rospy.loginfo('abhishek: self.light_loop_idx: %s, self.light_status= %s'%(self.light_loop_idx,self.light_status))
+
+
 
     def obstacle_cb(self, msg):
         # TODO: Callback for /obstacle_waypoint message. We will implement it later
@@ -262,8 +371,8 @@ class WaypointUpdater(object):
 
     def distance(self, waypoints, wp1, wp2):
         dist = 0
-        dl = lambda a, b: math.sqrt((a.x-b.x)**2 + (a.y-b.y)**2  + (a.z-b.z)**2)
-        for i in range(wp1, wp2+1):
+        dl = lambda a, b: math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2 + (a.z - b.z) ** 2)
+        for i in range(wp1, wp2 + 1):
             dist += dl(waypoints[wp1].pose.pose.position, waypoints[i].pose.pose.position)
             wp1 = i
         return dist
@@ -274,4 +383,3 @@ if __name__ == '__main__':
         WaypointUpdater()
     except rospy.ROSInterruptException:
         rospy.logerr('Could not start waypoint updater node.')
-

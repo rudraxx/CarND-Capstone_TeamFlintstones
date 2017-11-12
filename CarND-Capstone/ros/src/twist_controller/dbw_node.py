@@ -60,7 +60,7 @@ class DBWNode(object):
         # specify the controller gain parameters
         #1) Velocity controller
         #self.velocity_control_params = [0.3, 0.01, 0.02]
-        self.velocity_control_params = [0.3, 0.01,0.02]
+        self.velocity_control_params = [0.4, 0.0,0.02]
 
         #2 Yaw controller
         yaw_controller = YawController(wheel_base, steer_ratio, ONE_MPH, max_lat_accel, max_steer_angle)
@@ -166,4 +166,3 @@ if __name__ == '__main__':
         DBWNode()
     except rospy.ROSInterruptException:
         rospy.logerr('Could not start DBW node.')
-
