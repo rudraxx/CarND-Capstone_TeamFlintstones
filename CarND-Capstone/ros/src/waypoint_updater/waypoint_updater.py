@@ -29,7 +29,7 @@ TARGET_VELOCITY = 20
 ENABLE_TRAFFIC_LIGHTS= 0
 =======
 LOOKAHEAD_WPS = 100  # Number of waypoints we will publish. You can change this number
-TARGET_VELOCITY = 45
+#TARGET_VELOCITY = 45
 ENABLE_TRAFFIC_LIGHTS = True
 DESIRED_DECEL = -2.0 # m/s2
 #DESIRED_DECEL =rospy.get_param('~decel_limit',-5.0)
@@ -48,6 +48,8 @@ class WaypointUpdater(object):
         rospy.Subscriber('/obstacle_waypoint', Int32, self.obstacle_cb)
 
         rospy.Subscriber('/current_velocity', TwistStamped, self.velocity_cb)
+
+        self.target_velocity_mps = self.kmph2mps(rospy.get_param('~/waypoint_loader/velocity'))
 
         # Read the below statement as
         # waypoint_updater pubishing on topic: 'final_waypoints' of type: 'Lane', with queue_size of : 1
@@ -89,7 +91,12 @@ class WaypointUpdater(object):
     def velocity_cb(self,msg):
         self.current_twist_msg = msg
 
-    def accelerate(self,target_velocity_mps,velocity_increment,next_wp_idx,array_final_waypoints):
+    def kmph2mps(self, velocity_kmph):
+        return (velocity_kmph * 1000.) / (60. * 60.)
+
+    def accelerate(self,next_wp_idx,array_final_waypoints):
+
+        #velocity_increment = self.target_velocity_mps/LOOKAHEAD_WPS
 
         for idx_waypt in range(LOOKAHEAD_WPS):
             idx_waypt_to_append = (next_wp_idx + idx_waypt) % len(self.master_lane_data.waypoints)
@@ -100,7 +107,7 @@ class WaypointUpdater(object):
             current_vel = self.current_twist_msg.twist.linear.x
 
             #new_waypt_vel = min(current_vel+velocity_increment,target_velocity_mps)
-            new_waypt_vel = target_velocity_mps
+            new_waypt_vel = self.target_velocity_mps
 
             waypt_to_append.twist.twist.linear.x = new_waypt_vel
             # Append the waypoint to the array of waypoints.
@@ -109,11 +116,12 @@ class WaypointUpdater(object):
         # Publish the Lane info to the /final_waypoints topic
         self.final_waypoints_pub.publish(array_final_waypoints)
 
-    def decelerate(self,target_velocity_mps,next_wp_idx,array_final_waypoints,num_waypts_to_light):
+    def decelerate(self,next_wp_idx,array_final_waypoints,num_waypts_to_light):
             current_vel = self.current_twist_msg.twist.linear.x
             rospy.loginfo('num_waypts_to_light: %s, curr_vel: %.2f'%(num_waypts_to_light, current_vel) )
             # Start creating waypoints in reverse order.
             # WIll be much simpler to do velocity calcuations.
+
             buffer_points = 10
             if num_waypts_to_light> buffer_points:
 
@@ -142,7 +150,7 @@ class WaypointUpdater(object):
 
                     wp_vel = math.sqrt(end_vel*end_vel - 2*DESIRED_DECEL*dist)
                     #new_waypt_vel = min(wp_vel,current_vel)
-                    new_waypt_vel = min(target_velocity_mps, wp_vel)
+                    new_waypt_vel = min(self.target_velocity_mps, wp_vel)
 
 
                     waypt_to_append.twist.twist.linear.x = new_waypt_vel
@@ -189,9 +197,10 @@ class WaypointUpdater(object):
             array_final_waypoints = Lane()
 
             #  calculate target velocity increment to accelerate from stop state
-            target_velocity_mps = TARGET_VELOCITY * 0.44704
-            velocity_increment = target_velocity_mps / LOOKAHEAD_WPS  # mph to m/s conversion factor
+            #target_velocity_mps = TARGET_VELOCITY * 0.44704
+            #velocity_increment = target_velocity_mps / LOOKAHEAD_WPS  # mph to m/s conversion factor
 
+<<<<<<< HEAD
 <<<<<<< HEAD
        # 2) Now that we have the closest waypoint, create a new list for the final waypoints
             # Get the next LOOKAHEAD_WPS waypoints.
@@ -272,16 +281,21 @@ class WaypointUpdater(object):
             velocity_decrement = 0
             flag_calc_decrement = True
 >>>>>>> 08bdc52c497561aa189d82d97ac9da82e31ff562
+=======
+            #flag_first_waypt = True
+            #velocity_decrement = 0
+            #flag_calc_decrement = True
+>>>>>>> aedce66f209a7417cb5045c47a66be5b3edd21ba
 
             num_waypts_to_light = (self.traffic_wp - next_wp_idx)
             #num_waypts_to_light = (self.traffic_wp - next_wp_idx)% len(self.master_lane_data.waypoints)
 
             if (self.light_status==0 and (num_waypts_to_light< LOOKAHEAD_WPS) and ENABLE_TRAFFIC_LIGHTS) :
                 # We have a red light coming up
-                self.decelerate(target_velocity_mps,next_wp_idx,array_final_waypoints,num_waypts_to_light)
+                self.decelerate(next_wp_idx,array_final_waypoints,num_waypts_to_light)
             else:
                 # No red light increment velocity to target velocity
-                self.accelerate(target_velocity_mps,velocity_increment,next_wp_idx,array_final_waypoints)
+                self.accelerate(next_wp_idx,array_final_waypoints)
 
 
     def get_next_waypoint(self, ego_pose, waypoints):
